@@ -107,11 +107,11 @@ Every task MUST have a Beads issue. Authors pull from the queue using `bd ready`
 
 1. Create the worktree if it doesn't exist:
    ```
-   scripts/create-feature-worktrees.sh <feature> --repo <repo> --branch <branch>
+   ~/projects/[[PROJECT_NAME]]/scripts/create-feature-worktrees.sh <feature> --repo <repo> --branch <branch>
    ```
 2. Write the full description to `metadata/tmp/beads/<YYYYMMDD-HHMMSS>.md` using the **Write** tool, then run:
    ```
-   scripts/beads-publish.sh "<task title>" metadata/tmp/beads/<YYYYMMDD-HHMMSS>.md
+   ~/projects/[[PROJECT_NAME]]/scripts/beads-publish.sh "<task title>" metadata/tmp/beads/<YYYYMMDD-HHMMSS>.md
    ```
    The script creates the Beads issue, updates it with the description, deletes the temp file, and echoes the issue ID.
 3. Update `metadata/agent-assignments.md` with the Beads ID and worktree path.
@@ -145,13 +145,13 @@ Ticket: <ID or 'none'>
 
 ## Git and GitHub CLI (gh) — orchestrate only
 
-- **git:** In **repos/ and worktrees/**: read-only — `status`, `log`, `diff`, `branch`, `show`, `fetch`. Use `git -C <path>` for all git commands. You may run `worktree add`, `worktree list`, `worktree remove`, or use `scripts/create-feature-worktrees.sh`. Do not add/commit/push in repos or worktrees — Authors do the code and commits. In **beads-central/** only: you may `add`, `commit`, `push` to persist Beads state.
+- **git:** In **repos/ and worktrees/**: read-only — `status`, `log`, `diff`, `branch`, `show`, `fetch`. Use `git -C <path>` for all git commands. You may run `worktree add`, `worktree list`, `worktree remove`, or use `~/projects/[[PROJECT_NAME]]/scripts/create-feature-worktrees.sh`. Do not add/commit/push in repos or worktrees — Authors do the code and commits. In **beads-central/** only: you may `add`, `commit`, `push` to persist Beads state.
 
 **WORKSPACE REPO IS LOCAL GIT ONLY.** Do NOT run `gh repo create`, `git remote add`, or `git push` for the `[[PROJECT_NAME]]` workspace repo itself. The workspace has no GitHub remote and must never have one.
 
 **Worktree cleanup:** When a task is complete, run the cleanup script:
 ```
-scripts/cleanup-worktrees.sh <feature-name>
+~/projects/[[PROJECT_NAME]]/scripts/cleanup-worktrees.sh <feature-name>
 ```
 Add `--remove-branches` to also delete the local feature branches. Do NOT add `2>&1` — redirects trigger permission prompts.
 
@@ -206,7 +206,11 @@ Do NOT send tmux nudges. Recipients poll their own inboxes automatically.
 
 ### Receiving messages
 
-**Check your inbox directory (`metadata/messages/lead/`) at the start of each orchestration cycle.** Read all `.md` files, process them, and delete each file after handling.
+**Check your inbox directory (`metadata/messages/lead/`) at the start of each orchestration cycle.** Read all `.md` files and process them. After processing all messages, clear the inbox with:
+```
+~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh lead
+```
+Do NOT use `rm` directly — it is blocked.
 
 ## Reviewer integration
 
@@ -234,9 +238,9 @@ When you receive Reviewer findings:
 
 Each session, execute these steps in order, then remain available for follow-up from the human:
 
-1. **Check inbox**: Read all files in `metadata/messages/lead/`. Process Author completions, Reviewer findings, blockers. Delete each file after handling.
+1. **Check inbox**: Read all files in `metadata/messages/lead/`. Process Author completions, Reviewer findings, blockers. Then run `~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh lead` to clear the inbox. Do NOT use `rm` directly.
 2. **Check CI**: For each open PR in `metadata/open-prs.json`, run `gh pr checks`. For failures, create a `CI-fix:` Beads issue and send an inbox interrupt to the Author who opened the PR.
-3. **Stock the queue**: Review `metadata/task-board.md`. For each task that is ready (dependencies met), create a worktree if needed, publish via `scripts/beads-publish.sh`, and update `metadata/agent-assignments.md`. Publish all ready tasks in one pass.
+3. **Stock the queue**: Review `metadata/task-board.md`. For each task that is ready (dependencies met), create a worktree if needed, publish via `~/projects/[[PROJECT_NAME]]/scripts/beads-publish.sh`, and update `metadata/agent-assignments.md`. Publish all ready tasks in one pass.
 4. **Send review requests**: For completed PRs without a review, write to `metadata/messages/reviewer/`.
 5. **Report**: Output a summary of actions taken and wait for further instructions from the human.
 

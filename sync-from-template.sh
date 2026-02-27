@@ -50,6 +50,7 @@ SCRIPTS=(
   agent-loop.sh
   beads-publish.sh
   cleanup-worktrees.sh
+  clear-inbox.sh
   create-feature-worktrees.sh
   env.sh
   validate-path.sh
@@ -67,8 +68,8 @@ for script in "${SCRIPTS[@]}"; do
     continue
   fi
 
-  # Substitute [[PROJECT_NAME]] placeholder
-  RENDERED="$(sed "s/\[\[PROJECT_NAME\]\]/$PROJECT_NAME/g" "$SRC")"
+  # Substitute [[PROJECT_NAME]] and [[PROJECT_ROOT]] placeholders
+  RENDERED="$(sed -e "s/\[\[PROJECT_NAME\]\]/$PROJECT_NAME/g" -e "s|\[\[PROJECT_ROOT\]\]|$PROJECT_PATH|g" "$SRC")"
 
   if [[ ! -f "$DST" ]]; then
     echo "$RENDERED" > "$DST"
@@ -80,7 +81,7 @@ for script in "${SCRIPTS[@]}"; do
       log "- ok: \`scripts/$script\`"
     else
       log "- **DIFFERS**: \`scripts/$script\` — template has changes; review and apply manually"
-      log "  (Run: diff $DST <(sed 's/\[\[PROJECT_NAME\]\]/$PROJECT_NAME/g' $SRC))"
+      log "  (Run: diff $DST <(sed -e 's/\[\[PROJECT_NAME\]\]/$PROJECT_NAME/g' -e 's|\[\[PROJECT_ROOT\]\]|$PROJECT_PATH|g' $SRC))"
     fi
   fi
 done
@@ -116,7 +117,7 @@ for script in "${ROOT_SCRIPTS[@]}"; do
       log "- ok: \`$script\`"
     else
       log "- **DIFFERS**: \`$script\` — template has changes; review and apply manually"
-      log "  (Run: diff $DST <(sed 's/\[\[PROJECT_NAME\]\]/$PROJECT_NAME/g' $SRC))"
+      log "  (Run: diff $DST <(sed -e 's/\[\[PROJECT_NAME\]\]/$PROJECT_NAME/g' -e 's|\[\[PROJECT_ROOT\]\]|$PROJECT_PATH|g' $SRC))"
     fi
   fi
 done

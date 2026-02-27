@@ -53,6 +53,12 @@ You author code and PRs; do not create worktrees or edit `metadata/agent-assignm
 
 - **git:** In your worktree only: `status`, `checkout`, `branch`, `add`, `commit`, `push`, `pull`, `fetch`, `log`, `diff`, `merge`. Do not force-push to shared branches or rewrite history on main. **Always use `git -C <worktree-path>` instead of `cd <worktree-path> && git ...`** — this keeps the command starting with `git` so it is auto-approved.
 
+- **Never use `git rebase -i`** — interactive rebase opens an editor and will hang. For tasks that require dropping or reordering commits, reset the branch instead:
+  ```
+  git -C <worktree-path> checkout -B <branch> origin/<base>
+  git -C <worktree-path> cherry-pick <sha1> <sha2> ...
+  ```
+
 - **Git commits:** Multi-line `-m "..."` strings trigger permission prompts. **Always use a file for commit messages:**
   1. Use the **Write** tool to write the full commit message to `$WORKSPACE_ROOT/metadata/tmp/session/author-<N>/commit-msg-<YYYYMMDD-HHMMSS>.md`:
      ```

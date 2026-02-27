@@ -99,10 +99,14 @@ sed -i '' \
   -e '/^metadata-template\/tmp/d' \
   "$DEST/.gitignore"
 
-# --- Substitute [[PROJECT_NAME]] and [[NUM_AUTHORS]] in all text files ---
-echo "Substituting [[PROJECT_NAME]] → $PROJECT_NAME, [[NUM_AUTHORS]] → $NUM_AUTHORS ..."
+# --- Substitute [[PROJECT_NAME]], [[NUM_AUTHORS]], [[PROJECT_ROOT]] in all text files ---
+echo "Substituting [[PROJECT_NAME]] → $PROJECT_NAME, [[NUM_AUTHORS]] → $NUM_AUTHORS, [[PROJECT_ROOT]] → $DEST ..."
 find "$DEST" -type f \( -name "*.sh" -o -name "*.md" -o -name "*.txt" -o -name "*.json" -o -name "CLAUDE.md" \) \
-  -exec sed -i '' -e "s/\[\[PROJECT_NAME\]\]/$PROJECT_NAME/g" -e "s/\[\[NUM_AUTHORS\]\]/$NUM_AUTHORS/g" {} +
+  -exec sed -i '' \
+    -e "s/\[\[PROJECT_NAME\]\]/$PROJECT_NAME/g" \
+    -e "s/\[\[NUM_AUTHORS\]\]/$NUM_AUTHORS/g" \
+    -e "s|\[\[PROJECT_ROOT\]\]|$DEST|g" \
+  {} +
 
 # --- Copy metadata-template to metadata ---
 echo "Initialising metadata/ from metadata-template/ ..."
