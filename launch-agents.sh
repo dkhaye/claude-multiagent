@@ -32,6 +32,7 @@ fi
 tmux new-session -d -s "$SESSION" -c "$WORKSPACE_ROOT" -e CLAUDECODE=""
 tmux rename-window -t "$SESSION" "agents"
 tmux set-option -t "$SESSION" pane-border-status top
+tmux set-option -t "$SESSION" pane-border-format " #{@pane_label} "
 
 # Total panes: Lead + NUM_AUTHORS + Reviewer + spare = NUM_AUTHORS + 3
 # Additional splits beyond the initial pane 0: NUM_AUTHORS + 2
@@ -43,23 +44,23 @@ done
 
 # Pane 0: Lead
 tmux send-keys -t "${SESSION}:agents.0" "source $WORKSPACE_ROOT/scripts/env.sh && $LOOP lead" C-m
-tmux select-pane -t "${SESSION}:agents.0" -T "lead"
+tmux set-option -pt "${SESSION}:agents.0" @pane_label "lead"
 
 # Panes 1..NUM_AUTHORS: Authors
 for i in $(seq 1 "$NUM_AUTHORS"); do
   tmux send-keys -t "${SESSION}:agents.$i" "source $WORKSPACE_ROOT/scripts/env.sh && $LOOP author $i" C-m
-  tmux select-pane -t "${SESSION}:agents.$i" -T "author-$i"
+  tmux set-option -pt "${SESSION}:agents.$i" @pane_label "author-$i"
 done
 
 # Pane NUM_AUTHORS+1: Reviewer
 REVIEWER_PANE=$((NUM_AUTHORS + 1))
 tmux send-keys -t "${SESSION}:agents.$REVIEWER_PANE" "source $WORKSPACE_ROOT/scripts/env.sh && $LOOP reviewer" C-m
-tmux select-pane -t "${SESSION}:agents.$REVIEWER_PANE" -T "reviewer"
+tmux set-option -pt "${SESSION}:agents.$REVIEWER_PANE" @pane_label "reviewer"
 
 # Pane NUM_AUTHORS+2: spare
 SPARE_PANE=$((NUM_AUTHORS + 2))
 tmux send-keys -t "${SESSION}:agents.$SPARE_PANE" "echo 'Spare pane — use for ad-hoc commands'" C-m
-tmux select-pane -t "${SESSION}:agents.$SPARE_PANE" -T "spare"
+tmux set-option -pt "${SESSION}:agents.$SPARE_PANE" @pane_label "spare"
 
 tmux select-pane -t "${SESSION}:agents.0"
 
