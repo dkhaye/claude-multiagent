@@ -4,12 +4,13 @@
 # Usage: sync-from-template.sh <project-workspace-path>
 #
 # What this script does (mechanical, auto-applied):
-#   1. Copies new or updated scripts from the template into the project
-#   2. Creates any missing inbox/tmp directories
+#   1. Copies new or updated scripts/ from the template into the project
+#   2. Copies new or updated root-level scripts (launch-agents.sh, etc.)
+#   3. Creates any missing inbox/tmp directories
 #
 # What this script does NOT do (requires Master CC / AI session):
-#   3. CLAUDE.md updates — semantically complex, project-specific content must be preserved
-#   4. settings.local.json permission changes — project-specific, reviewed manually
+#   4. CLAUDE.md updates — semantically complex, project-specific content must be preserved
+#   5. settings.local.json permission changes — project-specific, reviewed manually
 #
 # After running this script, review the sync report and apply CLAUDE.md changes
 # manually in the project's CC session or via the Master CC.
@@ -86,7 +87,43 @@ done
 
 log ""
 
-# ── 2. Directories ──────────────────────────────────────────────────────────────
+# ── 2. Root-level scripts ───────────────────────────────────────────────────────
+log "## Root scripts"
+log ""
+
+ROOT_SCRIPTS=(
+  launch-agents.sh
+)
+
+for script in "${ROOT_SCRIPTS[@]}"; do
+  SRC="$TEMPLATE_ROOT/$script"
+  DST="$PROJECT_PATH/$script"
+
+  if [[ ! -f "$SRC" ]]; then
+    log "- SKIP: \`$script\` not in template"
+    continue
+  fi
+
+  RENDERED="$(sed "s/\[\[PROJECT_NAME\]\]/$PROJECT_NAME/g" "$SRC")"
+
+  if [[ ! -f "$DST" ]]; then
+    echo "$RENDERED" > "$DST"
+    chmod +x "$DST" 2>/dev/null || true
+    log "- **ADDED**: \`$script\` (new in template)"
+  else
+    EXISTING="$(cat "$DST")"
+    if [[ "$EXISTING" == "$RENDERED" ]]; then
+      log "- ok: \`$script\`"
+    else
+      log "- **DIFFERS**: \`$script\` — template has changes; review and apply manually"
+      log "  (Run: diff $DST <(sed 's/\[\[PROJECT_NAME\]\]/$PROJECT_NAME/g' $SRC))"
+    fi
+  fi
+done
+
+log ""
+
+# ── 4. Directories ──────────────────────────────────────────────────────────────
 log "## Directories"
 log ""
 
@@ -126,7 +163,7 @@ done
 
 log ""
 
-# ── 3. CLAUDE.md — manual review checklist ─────────────────────────────────────
+# ── 5. CLAUDE.md — manual review checklist ─────────────────────────────────────
 log "## CLAUDE.md files — manual review required"
 log ""
 log "The template CLAUDE.md files are at: \`$TEMPLATE_ROOT/.claude-workspace-template/\`"
@@ -169,7 +206,7 @@ log "---"
 log "Sync complete. Apply CLAUDE.md changes in the project CC session or via Master CC, then commit."
 log ""
 log "To commit the mechanical changes applied by this script:"
-log "  git -C $PROJECT_PATH add scripts/ metadata/ && git -C $PROJECT_PATH commit -m 'chore: sync from template $TIMESTAMP'"
+log "  git -C $PROJECT_PATH add ${ROOT_SCRIPTS[*]} scripts/ metadata/ && git -C $PROJECT_PATH commit -m 'chore: sync from template $TIMESTAMP'"
 
 echo ""
 echo "Report written to: $REPORT"
