@@ -1,0 +1,26 @@
+# Beads database (project-specific, not part of the template)
+beads-central/
+
+# Workspace instance directories (created by new-project.sh, not committed here)
+.claude-workspace/
+metadata/
+
+# Worktrees and repo clones (large, project-specific)
+worktrees/
+repos/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Editor
+.vscode/
+*.swp
+*.swo
+
+# Logs
+metadata-template/logs/*.log
+
+# Temp files
+metadata-template/tmp/beads/*.md
+metadata-template/tmp/session/**/*.md
