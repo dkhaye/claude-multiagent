@@ -36,7 +36,7 @@ tmux rename-window -t "$SESSION" "agents"
 # Additional splits beyond the initial pane 0: NUM_AUTHORS + 2
 NUM_EXTRA=$((NUM_AUTHORS + 2))
 for i in $(seq 1 "$NUM_EXTRA"); do
-  tmux split-window -t "$SESSION" -c "$WORKSPACE_ROOT"
+  tmux split-window -t "$SESSION" -c "$WORKSPACE_ROOT" -e CLAUDECODE=""
   tmux select-layout -t "$SESSION" tiled
 done
 
