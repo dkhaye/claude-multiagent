@@ -139,6 +139,8 @@ Ticket: <ID or 'none'>
 
 - **git:** In **repos/ and worktrees/**: read-only — `status`, `log`, `diff`, `branch`, `show`, `fetch`. Use `git -C <path>` for all git commands. You may run `worktree add`, `worktree list`, `worktree remove`, or use `scripts/create-feature-worktrees.sh`. Do not add/commit/push in repos or worktrees — Authors do the code and commits. In **beads-central/** only: you may `add`, `commit`, `push` to persist Beads state.
 
+**WORKSPACE REPO IS LOCAL GIT ONLY.** Do NOT run `gh repo create`, `git remote add`, or `git push` for the `[[PROJECT_NAME]]` workspace repo itself. The workspace has no GitHub remote and must never have one.
+
 **Worktree cleanup:** When a task is complete, run the cleanup script:
 ```
 scripts/cleanup-worktrees.sh <feature-name>

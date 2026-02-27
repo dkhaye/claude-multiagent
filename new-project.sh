@@ -2,16 +2,27 @@
 # new-project.sh — Bootstrap a new multi-agent workspace from this template.
 #
 # Usage:
-#   new-project.sh <project-name> [--dest <destination-dir>] [--authors N]
+#   new-project.sh <project-name> [--dest <destination-dir>] [--authors N] [--root <projects-root>]
 #
 # Creates a new project directory by copying this template and substituting
 # [[PROJECT_NAME]] and [[NUM_AUTHORS]] placeholders throughout. Then initialises
-# git, creates a beads-central database, and prints next steps.
+# git, creates a beads-central database, and registers the project in the
+# global registry at $PROJECTS_ROOT/.global/projects.json.
 #
-# Prerequisites: git, gh (GitHub CLI), bd (beads).
+# IMPORTANT: Project workspace repos are LOCAL GIT ONLY.
+# Do NOT create GitHub remotes for project workspaces. Ever.
+# Only the template repo itself (this repo) has a GitHub remote.
+#
+# Prerequisites: git, bd (beads), jq.
 set -euo pipefail
 
 TEMPLATE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# PROJECTS_ROOT: the parent directory for all project workspaces.
+# Auto-detected from the template's location (.global/template/ -> .global/ -> ROOT).
+# Override with --root <dir> or PROJECTS_ROOT env var.
+INFERRED_ROOT="$(dirname "$(dirname "$TEMPLATE_DIR")")"
+PROJECTS_ROOT="${PROJECTS_ROOT:-$INFERRED_ROOT}"
 
 PROJECT_NAME="${1:-}"
 DEST_DIR=""
@@ -21,14 +32,9 @@ NUM_AUTHORS=3
 shift || true
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --dest)
-      DEST_DIR="$2"
-      shift 2
-      ;;
-    --authors)
-      NUM_AUTHORS="$2"
-      shift 2
-      ;;
+    --dest)    DEST_DIR="$2";      shift 2 ;;
+    --authors) NUM_AUTHORS="$2";   shift 2 ;;
+    --root)    PROJECTS_ROOT="$2"; shift 2 ;;
     *)
       echo "Unknown argument: $1" >&2
       exit 1
@@ -36,19 +42,18 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "$PROJECT_NAME" ]]; then
-  echo "Usage: new-project.sh <project-name> [--dest <destination-dir>] [--authors N]" >&2
-  echo "" >&2
-  echo "  project-name   Short identifier for the project (e.g. my-project)" >&2
-  echo "                 Used as tmux session name, directory name, and path prefix." >&2
-  echo "  --dest DIR     Parent directory for the new project (default: ~/projects)" >&2
-  echo "  --authors N    Number of Author agents (default: 3)" >&2
-  exit 1
-fi
+GLOBAL_DIR="$PROJECTS_ROOT/.global"
 
-# Validate author count
-if ! [[ "$NUM_AUTHORS" =~ ^[1-9][0-9]*$ ]]; then
-  echo "Error: --authors must be a positive integer." >&2
+if [[ -z "$PROJECT_NAME" ]]; then
+  echo "Usage: new-project.sh <project-name> [--dest <dir>] [--authors N] [--root <projects-root>]" >&2
+  echo "" >&2
+  echo "  project-name   Short identifier (e.g. my-project). Lowercase alphanumeric + hyphens." >&2
+  echo "                 Used as tmux session name, directory name, and path prefix." >&2
+  echo "  --dest DIR     Parent directory for the new project (default: \$PROJECTS_ROOT)" >&2
+  echo "  --authors N    Number of Author agents (default: 3)" >&2
+  echo "  --root DIR     Override PROJECTS_ROOT (default: inferred from template location)" >&2
+  echo "" >&2
+  echo "  PROJECTS_ROOT is currently: $PROJECTS_ROOT" >&2
   exit 1
 fi
 
@@ -58,7 +63,13 @@ if ! [[ "$PROJECT_NAME" =~ ^[a-z0-9-]+$ ]]; then
   exit 1
 fi
 
-DEST_PARENT="${DEST_DIR:-$HOME/projects}"
+# Validate author count
+if ! [[ "$NUM_AUTHORS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "Error: --authors must be a positive integer." >&2
+  exit 1
+fi
+
+DEST_PARENT="${DEST_DIR:-$PROJECTS_ROOT}"
 DEST="$DEST_PARENT/$PROJECT_NAME"
 
 if [[ -e "$DEST" ]]; then
@@ -67,6 +78,8 @@ if [[ -e "$DEST" ]]; then
 fi
 
 echo "Creating project '$PROJECT_NAME' at $DEST ..."
+echo "  PROJECTS_ROOT: $PROJECTS_ROOT"
+echo "  Authors: $NUM_AUTHORS"
 echo ""
 
 # --- Copy template ---
@@ -77,8 +90,8 @@ rm -f "$DEST/new-project.sh"
 rm -rf "$DEST/.git"
 
 # Patch .gitignore for a project context:
-# - Remove .claude-workspace/ (it's committed in projects; only excluded from the template)
-# - Remove metadata-template/log and tmp patterns (no longer needed after bootstrap)
+# - Remove .claude-workspace/ (it's committed in projects; only excluded in the template)
+# - Remove metadata-template/ patterns (only meaningful in the template repo)
 sed -i '' \
   -e '/^\.claude-workspace\/$/d' \
   -e '/^# Workspace instance directories/d' \
@@ -119,8 +132,8 @@ mkdir -p "$DEST/beads-central"
   echo "Warning: bd init failed. You may need to initialise beads-central manually." >&2
 }
 
-# --- Git init ---
-echo "Initialising git repo ..."
+# --- Git init (LOCAL ONLY — no remote) ---
+echo "Initialising local git repo ..."
 git -C "$DEST" init
 git -C "$DEST" add .
 git -C "$DEST" commit -m "chore: initial project scaffold from claude-multiagent template
@@ -130,10 +143,9 @@ Authors: $NUM_AUTHORS
 Template: $(git -C "$TEMPLATE_DIR" rev-parse --short HEAD 2>/dev/null || echo 'unknown')
 "
 
-# --- Register in ~/.cc/projects.json ---
-CC_DIR="${HOME}/.cc"
-mkdir -p "$CC_DIR"
-REGISTRY="$CC_DIR/projects.json"
+# --- Register in $PROJECTS_ROOT/.global/projects.json ---
+mkdir -p "$GLOBAL_DIR"
+REGISTRY="$GLOBAL_DIR/projects.json"
 if [[ ! -f "$REGISTRY" ]]; then
   echo '{"projects":[]}' > "$REGISTRY"
 fi
@@ -145,15 +157,15 @@ if command -v jq &>/dev/null; then
   mv "$TMP_REGISTRY" "$REGISTRY"
   echo "Registered '$PROJECT_NAME' in $REGISTRY"
 else
-  echo "Warning: jq not found — skipping ~/.cc/projects.json registration." >&2
+  echo "Warning: jq not found — skipping registry registration." >&2
   echo "  Install jq (brew install jq) and add this entry manually:" >&2
   printf '  {"name":"%s","path":"%s","status":"active"}\n' "$PROJECT_NAME" "$DEST" >&2
 fi
 
-# Install global-status.sh to ~/.cc/ (always overwrite with latest version)
-cp "$TEMPLATE_DIR/scripts/global-status.sh" "$CC_DIR/global-status.sh"
-chmod +x "$CC_DIR/global-status.sh"
-echo "Installed ~/.cc/global-status.sh"
+# Install global-status.sh to $GLOBAL_DIR/ (always overwrite with latest version)
+cp "$TEMPLATE_DIR/scripts/global-status.sh" "$GLOBAL_DIR/global-status.sh"
+chmod +x "$GLOBAL_DIR/global-status.sh"
+echo "Installed $GLOBAL_DIR/global-status.sh"
 
 echo ""
 echo "=========================================="
@@ -161,18 +173,19 @@ echo " Project '$PROJECT_NAME' created at:"
 echo " $DEST"
 echo "=========================================="
 echo ""
+echo "IMPORTANT: This workspace repo is LOCAL GIT ONLY."
+echo "Do NOT create a GitHub remote for it."
+echo ""
 echo "Next steps:"
 echo "  1. Edit $DEST/.claude-workspace/{lead-agent,author-template,reviewer,command-center}/CLAUDE.md"
 echo "     Fill in the '## Project Configuration' section in each file."
 echo "  2. Edit $DEST/scripts/env.sh — set any project-specific env vars."
 echo "  3. Clone your repos into $DEST/repos/:"
 echo "     git clone <url> $DEST/repos/<repo-name>"
-echo "  4. (Optional) Create a GitHub repo for this workspace:"
-echo "     gh repo create <org>/$PROJECT_NAME --private --source $DEST"
-echo "  5. Launch agents:"
+echo "  4. Launch agents:"
 echo "     cd $DEST && ./launch-agents.sh"
-echo "  6. Open the command center in a new terminal:"
+echo "  5. Open the command center in a new terminal:"
 echo "     cd $DEST/.claude-workspace/command-center && claude"
-echo "  7. Check status across all projects:"
-echo "     ~/.cc/global-status.sh"
+echo "  6. Check status across all projects:"
+echo "     $GLOBAL_DIR/global-status.sh"
 echo ""

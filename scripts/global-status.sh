@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # global-status.sh — Summarize all registered claude-multiagent projects.
 #
-# Reads ~/.cc/projects.json and prints, for each project:
+# Reads $PROJECTS_ROOT/.global/projects.json and prints, for each project:
 #   - tmux session status (running / stopped)
 #   - number of pending messages in metadata/messages/human/
 #   - project status from the registry
@@ -11,18 +11,24 @@
 #   global-status.sh --json    # JSON output
 #   global-status.sh --inbox   # dump full contents of all human inbox messages
 #
-# This script is automatically installed to ~/.cc/global-status.sh by
-# new-project.sh, giving you a single system-level copy to run from anywhere.
+# PROJECTS_ROOT auto-detection: when this script lives at
+# $PROJECTS_ROOT/.global/global-status.sh, it detects PROJECTS_ROOT from its
+# own location. Override by setting PROJECTS_ROOT in your environment.
 #
 # Prerequisites: jq, tmux.
 set -euo pipefail
 
-CC_DIR="${CC_DIR:-$HOME/.cc}"
-REGISTRY="$CC_DIR/projects.json"
+# Auto-detect PROJECTS_ROOT as the parent of the directory containing this script.
+# When installed at $PROJECTS_ROOT/.global/global-status.sh this is always correct.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECTS_ROOT="${PROJECTS_ROOT:-$(dirname "$SCRIPT_DIR")}"
+GLOBAL_DIR="$PROJECTS_ROOT/.global"
+REGISTRY="$GLOBAL_DIR/projects.json"
 
 if [[ ! -f "$REGISTRY" ]]; then
   echo "No projects registered yet."
   echo "Run new-project.sh to create a project — it registers automatically."
+  echo "(Looking for registry at: $REGISTRY)"
   exit 0
 fi
 
@@ -40,6 +46,9 @@ case "${1:-}" in
     echo "  (no args)  Print a summary table of all projects"
     echo "  --json     Print JSON array of project state"
     echo "  --inbox    Dump full contents of each project's human inbox"
+    echo ""
+    echo "  PROJECTS_ROOT: $PROJECTS_ROOT"
+    echo "  Registry:      $REGISTRY"
     exit 0
     ;;
 esac

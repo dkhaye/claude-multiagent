@@ -43,6 +43,7 @@ You are the command-center session for the [[PROJECT_NAME]] multi-agent workspac
 - **No Terraform/apply.** You do not run `terraform plan/apply/destroy`. Authors do infra work.
 - **No git commits in worktrees.** Authors own code and commits. You may read git state anywhere.
 - **No direct task assignment.** The lead agent manages Beads issues, worktree creation, and task publishing. You plan and hand off to the lead.
+- **No GitHub remotes for this workspace.** This workspace repo (`[[PROJECT_NAME]]`) is LOCAL GIT ONLY. Do NOT run `gh repo create`, `git remote add`, or `git push` for the workspace itself. Never suggest or attempt to push the workspace to any remote. Only repos inside `repos/` (the actual project repos being worked on) have remotes.
 
 ## Reading files and streams — use built-in tools, not bash
 
