@@ -76,6 +76,16 @@ cp -r "$TEMPLATE_DIR" "$DEST"
 rm -f "$DEST/new-project.sh"
 rm -rf "$DEST/.git"
 
+# Patch .gitignore for a project context:
+# - Remove .claude-workspace/ (it's committed in projects; only excluded from the template)
+# - Remove metadata-template/log and tmp patterns (no longer needed after bootstrap)
+sed -i '' \
+  -e '/^\.claude-workspace\/$/d' \
+  -e '/^# Workspace instance directories/d' \
+  -e '/^metadata-template\/logs/d' \
+  -e '/^metadata-template\/tmp/d' \
+  "$DEST/.gitignore"
+
 # --- Substitute [[PROJECT_NAME]] and [[NUM_AUTHORS]] in all text files ---
 echo "Substituting [[PROJECT_NAME]] → $PROJECT_NAME, [[NUM_AUTHORS]] → $NUM_AUTHORS ..."
 find "$DEST" -type f \( -name "*.sh" -o -name "*.md" -o -name "*.txt" -o -name "*.json" -o -name "CLAUDE.md" \) \
