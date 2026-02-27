@@ -116,8 +116,34 @@ git -C "$DEST" add .
 git -C "$DEST" commit -m "chore: initial project scaffold from claude-multiagent template
 
 Project: $PROJECT_NAME
+Authors: $NUM_AUTHORS
 Template: $(git -C "$TEMPLATE_DIR" rev-parse --short HEAD 2>/dev/null || echo 'unknown')
 "
+
+# --- Register in ~/.cc/projects.json ---
+CC_DIR="${HOME}/.cc"
+mkdir -p "$CC_DIR"
+REGISTRY="$CC_DIR/projects.json"
+if [[ ! -f "$REGISTRY" ]]; then
+  echo '{"projects":[]}' > "$REGISTRY"
+fi
+if command -v jq &>/dev/null; then
+  TMP_REGISTRY="$(mktemp)"
+  jq --arg name "$PROJECT_NAME" --arg path "$DEST" \
+    '.projects += [{"name": $name, "path": $path, "status": "active"}]' \
+    "$REGISTRY" > "$TMP_REGISTRY"
+  mv "$TMP_REGISTRY" "$REGISTRY"
+  echo "Registered '$PROJECT_NAME' in $REGISTRY"
+else
+  echo "Warning: jq not found — skipping ~/.cc/projects.json registration." >&2
+  echo "  Install jq (brew install jq) and add this entry manually:" >&2
+  printf '  {"name":"%s","path":"%s","status":"active"}\n' "$PROJECT_NAME" "$DEST" >&2
+fi
+
+# Install global-status.sh to ~/.cc/ (always overwrite with latest version)
+cp "$TEMPLATE_DIR/scripts/global-status.sh" "$CC_DIR/global-status.sh"
+chmod +x "$CC_DIR/global-status.sh"
+echo "Installed ~/.cc/global-status.sh"
 
 echo ""
 echo "=========================================="
@@ -137,4 +163,6 @@ echo "  5. Launch agents:"
 echo "     cd $DEST && ./launch-agents.sh"
 echo "  6. Open the command center in a new terminal:"
 echo "     cd $DEST/.claude-workspace/command-center && claude"
+echo "  7. Check status across all projects:"
+echo "     ~/.cc/global-status.sh"
 echo ""
