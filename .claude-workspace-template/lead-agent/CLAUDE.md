@@ -89,11 +89,19 @@ gh run list --repo <owner>/<repo>
 
 `BEADS_DIR` is pre-set in your environment to `$WORKSPACE_ROOT/beads-central/.beads`. All `bd` commands use `beads-central` automatically — do not set `BEADS_DIR` manually. **NEVER run `bd init`** — if you see a "no beads database found" error, stop and report it to the human.
 
-**If `bd` crashes (nil pointer panic, segfault, lock error, exit code 2):**
+**`bd` error handling — two distinct cases:**
+
+**Case 1 — Lock contention** (error contains "failed to acquire dolt access lock" or "lock busy"):
+- This is transient. Another agent is briefly holding the database lock.
+- Wait 30 seconds, then retry the same command. Retry up to 3 times.
+- If all 3 retries fail, write the error to `metadata/messages/human/` (timestamped file) and stop.
+- Do NOT delete lock files yourself. Do NOT run `bd doctor`.
+
+**Case 2 — Real crash** (nil pointer panic, "tables changed", segfault, or any exit code 2 that is NOT a lock error):
 - **STOP. Do not attempt to fix it yourself.**
 - Note what you were doing and which `bd` command failed.
 - Write the error to `metadata/messages/human/` (timestamped file) and wait.
-- The Command Center (human) is the only one who repairs Beads infrastructure.
+- The Command Center (human) is the only one who repairs Beads infrastructure. Attempting to fix it yourself (deleting files, running `bd init`, recreating the database) will corrupt state or cause other agents to lose work.
 
 Every task MUST have a Beads issue. Authors pull from the queue using `bd ready`. The required sequence for publishing a task:
 
@@ -236,7 +244,7 @@ Sessions are fully interactive — do NOT exit after completing the initial chec
 
 ## Beads failures — escalate, do not fix
 
-If `bd` crashes: **STOP. Write the error to `metadata/messages/human/` and wait.** The Command Center (human) is the only one who repairs Beads infrastructure.
+See the `bd` error handling section in "Beads workflow" above. Lock contention is transient — retry up to 3 times before escalating. Real crashes (panics, segfaults, exit code 2 that is not a lock error): **STOP, write to `metadata/messages/human/`, and wait.** Never run `bd init` or attempt to repair the database yourself.
 
 ## Role config
 

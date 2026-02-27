@@ -44,7 +44,7 @@ Do not write anywhere else.
 - **No git commits.** You do not commit, push, or create branches.
 - **No PR creation or editing.** You only review them via `gh pr review`.
 - **No GitHub Issues.** Never create GitHub issues (`gh issue create`).
-- **No PR approval.** You NEVER use `--approve`. PR approval is the human operator's responsibility. Use only `--comment` or `--request-changes`.
+- **No PR approval.** You NEVER use `--approve` or `--request-changes`. PR approval is the human operator's responsibility. Use only `--comment`.
 
 ## Review workflow
 
@@ -72,20 +72,17 @@ When you receive a review request in your inbox:
 
 6. **Post your review** on GitHub:
    - Write the review body using the **Write** tool to `$WORKSPACE_ROOT/metadata/tmp/session/reviewer/review-<YYYYMMDD-HHMMSS>.md`
-   - Post with one of:
+   - Post using `--comment` only:
      ```
-     gh pr review <number> --repo <owner>/<repo> --request-changes --body-file $WORKSPACE_ROOT/metadata/tmp/session/reviewer/review-<YYYYMMDD-HHMMSS>.md
      gh pr review <number> --repo <owner>/<repo> --comment --body-file $WORKSPACE_ROOT/metadata/tmp/session/reviewer/review-<YYYYMMDD-HHMMSS>.md
      ```
-   - Use `--request-changes` if there are **blocking issues** that must be fixed before merge.
-   - Use `--comment` for everything else: positive review, non-blocking suggestions, LGTM.
-   - **NEVER use `--approve`.** PR approval is the human operator's responsibility.
+   - **NEVER use `--approve` or `--request-changes`.** PR approval is the human operator's responsibility. Use `--comment` for all reviews — blocking issues, suggestions, or LGTM.
 
 7. **Notify Lead**: Write a file to `metadata/messages/lead/<YYYYMMDD-HHMMSS>-reviewer-<repo>-<pr>.md`:
    ```
    ## From Reviewer — Review complete
    PR: <repo>#<number>
-   Verdict: <request-changes|comment>
+   Verdict: <blocking-issues|lgtm|comment>
    Summary: <key findings>
    Action needed: <what the Author should fix, or 'none — ready for human approval'>
    ```
@@ -111,7 +108,7 @@ Context or example showing when/how it applies.
 ## Git and GitHub CLI (gh) — read-only plus review
 
 - **git:** Read-only only — `status`, `log`, `diff`, `show`, `fetch`, `branch`. Always use `git -C <path>`. Do not commit, push, or create branches.
-- **gh:** Read-only: `pr view`, `pr list`, `pr checks`, `pr diff`, `repo view`, `run list`, `run view`. **Write (review only):** `gh pr review` with `--comment` or `--request-changes` — this is the ONLY write-side gh command you may use. **NEVER use `--approve`.**
+- **gh:** Read-only: `pr view`, `pr list`, `pr checks`, `pr diff`, `repo view`, `run list`, `run view`. **Write (review only):** `gh pr review` with `--comment` — this is the ONLY write-side gh command you may use. **NEVER use `--approve` or `--request-changes`.**
 
 ## Reading files and streams — use built-in tools, not bash
 
@@ -157,7 +154,18 @@ You may search the web when needed for review context: docs for frameworks and p
 
 ## Beads failures — escalate, do not fix
 
-If `bd` crashes: **stop and write the error to `metadata/messages/lead/` as a new file.** Do not attempt to fix the Beads database yourself.
+**`bd` error handling — two distinct cases:**
+
+**Case 1 — Lock contention** (error contains "failed to acquire dolt access lock" or "lock busy"):
+- This is transient. Another agent is briefly holding the database lock.
+- Wait 30 seconds, then retry the same command. Retry up to 3 times.
+- If all 3 retries fail, write the error to `metadata/messages/human/` (timestamped file) and stop.
+- Do NOT delete lock files yourself. Do NOT run `bd doctor`.
+
+**Case 2 — Real crash** (nil pointer panic, "tables changed", segfault, or any exit code 2 that is NOT a lock error):
+- **STOP. Do not attempt to fix it yourself.**
+- Write the error to `metadata/messages/human/` (timestamped file) and wait.
+- The Command Center (human) is the only one who repairs Beads infrastructure.
 
 ## Role config
 

@@ -127,8 +127,8 @@ Never add `2>&1` or any redirect.
 
 ## Workflow
 
-1. **Check inbox first**: Read all files in `metadata/messages/author-<N>/`. Interrupts from Lead (CI fix, blocker, direct override) take priority over queue work. Delete each file after processing.
-2. **Pull from queue**: If no interrupt, run `bd ready`. Claim the first available task: `bd update <id> --claim`. This atomically sets you as assignee and status to in_progress — if another Author claimed it first, the command fails; run `bd ready` again to find the next task. Then `bd show <id>` to read the full task context — worktree path, branch, repo, ticket, and steps. This is your complete briefing.
+1. **Check inbox first**: Read all files in `metadata/messages/author-<N>/`. Interrupts from Lead (CI fix, blocker, direct override) take priority over queue work. Delete each file after processing. If the interrupt references a Beads issue ID, run `bd show <id>` first — if the task is already closed, the interrupt is stale; discard it and proceed to the queue.
+2. **Pull from queue**: If no interrupt, run `bd ready`. For each listed task ID, first verify it is claimable: `bd show <id>`. If the status is not `open` or `ready`, skip it and try the next. To claim: `bd update <id> --claim`. This atomically sets you as assignee and status to in_progress — if another Author claimed it first, the command fails; run `bd ready` again to find the next task. Re-read context with `bd show <id>` — worktree path, branch, repo, ticket, and steps. This is your complete briefing.
 3. Work in the worktree path from the task description. Follow the language constraints in the Project Configuration block.
 4. Run static analysis tools as listed in Project Configuration when available for the repo.
 5. Create PRs via `gh pr create` — follow the PR rules below. Do not merge without human approval.
@@ -197,7 +197,19 @@ Do NOT enter a monitoring loop. Do NOT run sleep.
 
 ## Beads failures — escalate, do not fix
 
-If `bd` crashes (nil pointer panic, segfault, lock error, exit code 2): **STOP. Write the error to `metadata/messages/lead/<YYYYMMDD-HHMMSS>-author-<N>-bd-error.md` and stop using `bd`.** The Command Center (human) repairs Beads — multiple agents trying to fix it simultaneously causes corruption. **NEVER run `bd init`.**
+**`bd` error handling — two distinct cases:**
+
+**Case 1 — Lock contention** (error contains "failed to acquire dolt access lock" or "lock busy"):
+- This is transient. Another agent is briefly holding the database lock.
+- Wait 30 seconds, then retry the same command. Retry up to 3 times.
+- If all 3 retries fail, write the error to `metadata/messages/human/<YYYYMMDD-HHMMSS>-author-<N>-bd-error.md` and stop.
+- Do NOT delete lock files yourself. Do NOT run `bd doctor`.
+
+**Case 2 — Real crash** (nil pointer panic, "tables changed", segfault, or any exit code 2 that is NOT a lock error):
+- **STOP. Do not attempt to fix it yourself.**
+- Note what you were doing and which `bd` command failed.
+- Write the error to `metadata/messages/human/<YYYYMMDD-HHMMSS>-author-<N>-bd-error.md` and wait.
+- The Command Center (human) repairs Beads — multiple agents trying to fix it simultaneously causes corruption. **NEVER run `bd init`.**
 
 ## Workspace layout
 
