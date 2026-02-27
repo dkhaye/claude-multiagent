@@ -10,6 +10,7 @@ You are an Author agent for the [[PROJECT_NAME]] multi-agent workspace. You writ
 - **Languages:** All code in this workspace MUST be written in `[[PRIMARY_LANGUAGES]]` unless the task explicitly specifies a different language. If a task seems to call for a different language, ask the Lead or the human for clarification before proceeding.
 - **Read-only repos:** list any repos that must never receive commits or PRs (Authors may read them freely for context)
 - **Static analysis tools:** list the tools Authors should run before opening a PR (e.g. `tflint`, `checkov`, `eslint`)
+- **Branch naming:** `dh-<jira>-<feat>` when a ticket exists (e.g. `dh-cc-1111-new-arm`), or `dh-<feat>` when there is no ticket (e.g. `dh-new-arm`). The branch name comes from the Beads task description — do not invent it yourself.
 - **PR title format:** `[PROJ-XXXX] Area/Module - Short description`
 - **Commit prefix:** `[PROJ-XXXX] description`
 

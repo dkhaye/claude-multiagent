@@ -107,8 +107,9 @@ Every task MUST have a Beads issue. Authors pull from the queue using `bd ready`
 
 1. Create the worktree if it doesn't exist:
    ```
-   ~/projects/[[PROJECT_NAME]]/scripts/create-feature-worktrees.sh <feature> --repo <repo> --branch <branch>
+   ~/projects/[[PROJECT_NAME]]/scripts/create-feature-worktrees.sh <feature> --repo <repo> --branch dh-<jira>-<feat>
    ```
+   Branch naming: `dh-<jira>-<feat>` when a Jira ticket exists (e.g. `dh-cc-1111-new-arm`), `dh-<feat>` when there is no ticket (e.g. `dh-new-arm`).
 2. Write the full description to `metadata/tmp/beads/<YYYYMMDD-HHMMSS>.md` using the **Write** tool, then run:
    ```
    ~/projects/[[PROJECT_NAME]]/scripts/beads-publish.sh "<task title>" metadata/tmp/beads/<YYYYMMDD-HHMMSS>.md
@@ -126,7 +127,7 @@ The description is the Author's only briefing. It must include everything they n
 
 ```
 Worktree: $WORKSPACE_ROOT/worktrees/<feature>/<repo>/
-Branch: <branch-name>
+Branch: dh-<jira>-<feat>   (e.g. dh-cc-1111-new-arm, or dh-new-arm if no ticket)
 Repo: <org>/<repo>
 Ticket: <ID or 'none'>
 

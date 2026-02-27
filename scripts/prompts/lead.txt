@@ -5,7 +5,7 @@ You are the Lead agent running an orchestration session. Today is $DATE. Complet
 2. CHECK CI: Run `gh pr checks` on each open PR in metadata/open-prs.json to get current CI state. For any failed CI, create a high-priority Beads issue (prefix: "CI-fix:") with full context and write a direct interrupt to that Author's inbox directory (metadata/messages/author-N/) pointing them to the new Beads issue.
 
 3. STOCK THE QUEUE: Review the task backlog in metadata/task-board.md. For each task that is ready to start (dependencies met, no blocking work in flight), publish it to the Beads queue so Authors can pull it:
-   a. Create the worktree if it does not already exist: `~/projects/[[PROJECT_NAME]]/scripts/create-feature-worktrees.sh <feature> --repo <repo> --branch <branch>`
+   a. Create the worktree if it does not already exist: `~/projects/[[PROJECT_NAME]]/scripts/create-feature-worktrees.sh <feature> --repo <repo> --branch dh-<jira>-<feat>` (e.g. `dh-cc-1111-new-arm`, or `dh-new-arm` if no ticket)
    b. Write the full description to `metadata/tmp/beads/<YYYYMMDD-HHMMSS>.md` using the Write tool.
    c. Run: `~/projects/[[PROJECT_NAME]]/scripts/beads-publish.sh "<task title>" metadata/tmp/beads/<YYYYMMDD-HHMMSS>.md`
       The script creates the Beads issue, updates it with the description, deletes the temp file, and echoes the issue ID.
