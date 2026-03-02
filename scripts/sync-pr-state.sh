@@ -5,8 +5,14 @@
 # Prints a compact change summary — the JSON file is updated in-place.
 #
 # Usage:
-#   sync-pr-state.sh          # merge-state check only (fast: 1 API call/PR)
-#   sync-pr-state.sh --ci     # also refresh CI status (2 API calls/PR)
+#   sync-pr-state.sh                      # merge-state check only (fast: 1 API call/PR)
+#   sync-pr-state.sh --ci                 # also refresh CI status (2 API calls/PR)
+#   sync-pr-state.sh --approvals          # also check for human GitHub approvals (2 API calls/PR)
+#   sync-pr-state.sh --ci --approvals     # both
+#
+# --approvals sets human_approved=true on PRs that have at least one APPROVED review
+# from a non-bot GitHub user.  The Lead must check human_approved before notifying
+# the human inbox that a PR is ready to merge.
 #
 # Run as Step 0 at the start of every lead session.
 # The LLM reads ONLY the printed summary, not the full JSON — keep output brief.
@@ -16,13 +22,21 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PR_FILE="$SCRIPT_DIR/../metadata/open-prs.json"
 REFRESH_CI=false
-[[ "${1:-}" == "--ci" ]] && REFRESH_CI=true
+REFRESH_APPROVALS=false
+for arg in "$@"; do
+    case "$arg" in
+        --ci)          REFRESH_CI=true ;;
+        --approvals)   REFRESH_APPROVALS=true ;;
+        *)             printf 'Unknown option: %s\n' "$arg" >&2; exit 1 ;;
+    esac
+done
 
 # ── temp files (cleaned up on exit) ──────────────────────────────────────────
-MERGED_TMP=$(mktemp)   # repo|number|date
-CLOSED_TMP=$(mktemp)   # repo|number
-CI_TMP=$(mktemp)       # repo|number|new_status  (--ci only)
-trap 'rm -f "$MERGED_TMP" "$CLOSED_TMP" "$CI_TMP"' EXIT
+MERGED_TMP=$(mktemp)      # repo|number|date
+CLOSED_TMP=$(mktemp)      # repo|number
+CI_TMP=$(mktemp)          # repo|number|new_status        (--ci only)
+APPROVALS_TMP=$(mktemp)   # repo|number|true|false        (--approvals only)
+trap 'rm -f "$MERGED_TMP" "$CLOSED_TMP" "$CI_TMP" "$APPROVALS_TMP"' EXIT
 
 TODAY=$(date -u +%Y-%m-%d)
 open_count=$(jq '.open_prs | length' "$PR_FILE")
@@ -84,6 +98,23 @@ for pair in "${PR_PAIRS[@]}"; do
 
                 printf '%s|%s|%s\n' "$repo" "$num" "$new_status" >> "$CI_TMP"
             fi
+
+            if [[ "$REFRESH_APPROVALS" == "true" ]]; then
+                approval_data=$(gh pr view "$num" --repo "$repo" \
+                    --json reviews 2>/dev/null \
+                    || printf '{"reviews":[]}')
+
+                # human_approved = true if any non-bot user has APPROVED
+                approved=$(printf '%s\n' "$approval_data" | jq -r '
+                    (.reviews // []) |
+                    any(.state == "APPROVED" and
+                        (.author.login | test("\\[bot\\]$") | not)) |
+                    if . then "true" else "false" end')
+
+                printf '%s|%s|%s\n' "$repo" "$num" "$approved" >> "$APPROVALS_TMP"
+                [[ "$approved" == "true" ]] && \
+                    printf '  APPROVED  %s#%s  (human GitHub approval present)\n' "$repo" "$num"
+            fi
             ;;
     esac
 done
@@ -111,12 +142,20 @@ while IFS='|' read -r repo num status; do
              '. + {($k): $s}')
 done < "$CI_TMP"
 
+approval_map='{}'
+while IFS='|' read -r repo num approved; do
+    approval_map=$(printf '%s\n' "$approval_map" \
+        | jq --arg k "${repo}|${num}" --argjson a "$approved" \
+             '. + {($k): $a}')
+done < "$APPROVALS_TMP"
+
 # ── apply all changes in one jq pass ─────────────────────────────────────────
 jq \
-    --argjson merged  "$merged_json" \
-    --argjson closed  "$closed_json" \
-    --argjson ci_map  "$ci_map" \
-    --arg     today   "$TODAY" '
+    --argjson merged        "$merged_json" \
+    --argjson closed        "$closed_json" \
+    --argjson ci_map        "$ci_map" \
+    --argjson approval_map  "$approval_map" \
+    --arg     today         "$TODAY" '
 
   def in_list($arr):
     . as $self | $arr | any(.repo == $self.repo and .number == $self.number);
@@ -128,7 +167,8 @@ jq \
       select((in_list($merged) or in_list($closed)) | not)
     | . as $pr
     | ($pr.repo + "|" + ($pr.number | tostring)) as $k
-    | if ($ci_map | has($k)) then . + {"status": $ci_map[$k]} else . end
+    | if ($ci_map      | has($k)) then . + {"status":         $ci_map[$k]}      else . end
+    | if ($approval_map | has($k)) then . + {"human_approved": $approval_map[$k]} else . end
   ))                                                 as $still_open |
 
   # Stamp MERGED date onto notes for entries moving to merged_recently
@@ -153,5 +193,7 @@ printf '\nopen-prs.json updated: %d open, %d merged, %d closed.\n' \
     "$n_unchanged" "$n_merged" "$n_closed"
 [[ "$REFRESH_CI" == "true" ]] && \
     printf 'CI status refreshed for %d open PRs.\n' "$n_unchanged"
+[[ "$REFRESH_APPROVALS" == "true" ]] && \
+    printf 'Approval status refreshed for %d open PRs.\n' "$n_unchanged"
 [[ "$n_merged" -eq 0 && "$n_closed" -eq 0 ]] && \
     printf 'No state changes — open_prs matches GitHub.\n'
