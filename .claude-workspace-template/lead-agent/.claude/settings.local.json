@@ -55,6 +55,10 @@
       "Bash([[PROJECT_ROOT]]/scripts/clear-inbox.sh *)",
       "Bash(~/projects/[[PROJECT_NAME]]/scripts/gh-api-read.sh *)",
       "Bash([[PROJECT_ROOT]]/scripts/gh-api-read.sh *)",
+      "Bash(~/projects/[[PROJECT_NAME]]/scripts/sync-pr-state.sh*)",
+      "Bash([[PROJECT_ROOT]]/scripts/sync-pr-state.sh*)",
+      "Bash(~/projects/[[PROJECT_NAME]]/scripts/check-workspace-isolation.sh*)",
+      "Bash([[PROJECT_ROOT]]/scripts/check-workspace-isolation.sh*)",
       "WebSearch",
       "WebFetch"
     ]

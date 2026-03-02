@@ -42,7 +42,11 @@
       "Bash(gh workflow *)",
       "Bash(gh browse *)",
       "WebSearch",
-      "WebFetch"
+      "WebFetch",
+      "Bash(~/projects/[[PROJECT_NAME]]/scripts/sync-pr-state.sh*)",
+      "Bash([[PROJECT_ROOT]]/scripts/sync-pr-state.sh*)",
+      "Bash(~/projects/[[PROJECT_NAME]]/scripts/check-workspace-isolation.sh*)",
+      "Bash([[PROJECT_ROOT]]/scripts/check-workspace-isolation.sh*)"
     ]
   }
 }
