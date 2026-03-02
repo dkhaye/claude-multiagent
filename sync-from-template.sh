@@ -8,12 +8,12 @@
 #   2. Copies new or updated root-level scripts (launch-agents.sh, etc.)
 #   3. Creates any missing inbox/tmp directories
 #
-# What this script does NOT do (requires Master CC / AI session):
+# What this script does NOT do (requires Global CC / AI session):
 #   4. CLAUDE.md updates — semantically complex, project-specific content must be preserved
 #   5. settings.local.json permission changes — project-specific, reviewed manually
 #
 # After running this script, review the sync report and apply CLAUDE.md changes
-# manually in the project's CC session or via the Master CC.
+# manually in the project's CC session or via the Global CC.
 #
 set -euo pipefail
 
@@ -49,11 +49,18 @@ log ""
 SCRIPTS=(
   agent-loop.sh
   beads-publish.sh
+  ci-status.sh
   cleanup-worktrees.sh
   clear-inbox.sh
   create-feature-worktrees.sh
   env.sh
   gh-api-read.sh
+  global-status.sh
+  human-inbox.sh
+  pr-close.sh
+  pr-create.sh
+  sync-pr-state.sh
+  tmp-clean.sh
   validate-path.sh
   yarn-cwd.sh
 )
@@ -237,7 +244,7 @@ done
 
 log ""
 log "---"
-log "Sync complete. Apply CLAUDE.md changes in the project CC session or via Master CC, then commit."
+log "Sync complete. Apply CLAUDE.md changes in the project CC session or via Global CC, then commit."
 log ""
 log "To commit the mechanical changes applied by this script:"
 log "  git -C $PROJECT_PATH add ${ROOT_SCRIPTS[*]} scripts/ metadata/ && git -C $PROJECT_PATH commit -m 'chore: sync from template $TIMESTAMP'"
