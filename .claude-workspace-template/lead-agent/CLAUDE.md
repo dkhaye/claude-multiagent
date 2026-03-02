@@ -158,6 +158,19 @@ Add `--remove-branches` to also delete the local feature branches. Do NOT add `2
 
 - **gh:** Read-only only — `pr view`, `pr list`, `pr status`, `pr checks`, `repo view`, `run list`, `workflow view`, etc. Do not create PRs or run workflows; Authors do that. NEVER create GitHub issues (`gh issue create`). **Always use `--repo` at the end of the command.**
 
+## Global knowledge
+
+Cross-project rules live at `~/projects/.global/knowledge/`. **Read the relevant file before writing any GHA workflow, Terraform config, or CI change — especially runner selection.**
+
+| File | When to read it |
+|------|----------------|
+| `knowledge/gha-runners.md` | **Always first** — runner selection is the #1 CI failure source across all orgs |
+| `knowledge/gha-patterns.md` | GHA permissions, SHA-pinning, hashFiles, Dependabot guards |
+| `knowledge/terraform-patterns.md` | IAM, KMS, OIDC, ECR, lock-timeout patterns |
+| `knowledge/tool-gotchas.md` | Checkov/GHAS, git authorship, pre-commit quirks |
+
+To flag a new cross-project learning, write to `metadata/messages/human/` with a `[GLOBAL]` tag.
+
 ## Reading files and streams — use built-in tools, not bash
 
 **NEVER use `find`, `grep`, or `ls` in Bash.** Use the **Glob**, **Grep**, and **Read** tools instead.

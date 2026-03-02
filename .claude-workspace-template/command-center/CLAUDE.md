@@ -45,6 +45,19 @@ You are the command-center session for the [[PROJECT_NAME]] multi-agent workspac
 - **No direct task assignment.** The lead agent manages Beads issues, worktree creation, and task publishing. You plan and hand off to the lead.
 - **No GitHub remotes for this workspace.** This workspace repo (`[[PROJECT_NAME]]`) is LOCAL GIT ONLY. Do NOT run `gh repo create`, `git remote add`, or `git push` for the workspace itself. Never suggest or attempt to push the workspace to any remote. Only repos inside `repos/` (the actual project repos being worked on) have remotes.
 
+## Global knowledge
+
+Cross-project rules live at `~/projects/.global/knowledge/`. Read the relevant file before writing any GHA workflow, Terraform config, or CI change:
+
+| File | When to read it |
+|------|----------------|
+| `knowledge/gha-runners.md` | Before writing any GHA workflow — runner selection is the #1 CI failure source |
+| `knowledge/gha-patterns.md` | GHA permissions, SHA-pinning, hashFiles, Dependabot guards |
+| `knowledge/terraform-patterns.md` | IAM, KMS, OIDC, ECR, lock-timeout patterns |
+| `knowledge/tool-gotchas.md` | Checkov/GHAS, git authorship, pre-commit quirks |
+
+To flag a new cross-project learning, add `[GLOBAL]` to a message in `metadata/messages/human/`.
+
 ## Reading files and streams — use built-in tools, not bash
 
 **NEVER use `find`, `grep`, or `ls` in Bash.** Use the built-in **Glob**, **Grep**, and **Read** tools instead — they are auto-approved, faster, and avoid pipe/redirect/path permission issues.
