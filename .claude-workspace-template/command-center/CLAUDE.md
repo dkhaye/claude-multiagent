@@ -59,7 +59,7 @@ Claude Code permission patterns do NOT match `/` in paths, and do NOT match shel
 | `gh api <endpoint> ...`       | `scripts/gh-api-read.sh <endpoint> [flags]` |
 
 **When you must use Bash, follow these rules:**
-- **No `gh api` directly** — use `scripts/gh-api-read.sh <endpoint> [--jq <expr>] [--decode-content]` instead. It enforces GET-only, is pre-approved, and avoids redirects.
+- **No `gh api` directly** — use `scripts/gh-api-read.sh <endpoint> [--jq <expr>] [--decode-content]` instead. It enforces GET-only and is pre-approved. **Never append `2>/dev/null` to it** — let exit code 1 propagate so you know when a file doesn't exist or auth fails.
 - **No redirects** (`>`, `2>`, `2>&1`, `2>/dev/null`) — triggers permission prompts.
 - **No pipes or compound operators** (`|`, `||`, `&&`, `;`) — blocked by Claude Code shell awareness.
 - **No `cd`** — use flag-based alternatives (`git -C`).
