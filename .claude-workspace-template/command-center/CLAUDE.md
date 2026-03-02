@@ -51,13 +51,15 @@ You are the command-center session for the [[PROJECT_NAME]] multi-agent workspac
 
 Claude Code permission patterns do NOT match `/` in paths, and do NOT match shell operators (`|`, `||`, `&&`, `>`, `2>&1`). **Avoid permission prompts by using built-in tools:**
 
-| Instead of bash…              | Use this tool |
-|-------------------------------|---------------|
-| `cat`, `head`, `tail`, `less` | **Read**      |
-| `find`, `ls -R`, `tree`, `ls` | **Glob**      |
-| `grep -r`, `rg`               | **Grep**      |
+| Instead of bash…              | Use this tool / command |
+|-------------------------------|-------------------------|
+| `cat`, `head`, `tail`, `less` | **Read**                |
+| `find`, `ls -R`, `tree`, `ls` | **Glob**                |
+| `grep -r`, `rg`               | **Grep**                |
+| `gh api <endpoint> ...`       | `scripts/gh-api-read.sh <endpoint> [flags]` |
 
 **When you must use Bash, follow these rules:**
+- **No `gh api` directly** — use `scripts/gh-api-read.sh <endpoint> [--jq <expr>] [--decode-content]` instead. It enforces GET-only, is pre-approved, and avoids redirects.
 - **No redirects** (`>`, `2>`, `2>&1`, `2>/dev/null`) — triggers permission prompts.
 - **No pipes or compound operators** (`|`, `||`, `&&`, `;`) — blocked by Claude Code shell awareness.
 - **No `cd`** — use flag-based alternatives (`git -C`).
