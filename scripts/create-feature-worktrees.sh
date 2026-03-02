@@ -95,8 +95,20 @@ for repo in "${REPOS[@]}"; do
     echo "Exists: $DST"
     continue
   fi
-  if [[ -n "$BASE" ]]; then
-    git -C "$SRC" worktree add -b "$BRANCH" "$DST" "$BASE"
+  # Resolve base ref: explicit --base takes precedence; otherwise auto-detect
+  # from the remote's default branch (refs/remotes/origin/HEAD).  Falling back
+  # to current HEAD (no base arg) is intentionally the last resort so branches
+  # are never silently rooted at a locally-checked-out non-default branch.
+  EFFECTIVE_BASE="$BASE"
+  if [[ -z "$EFFECTIVE_BASE" ]]; then
+    REMOTE_HEAD=$(git -C "$SRC" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null || true)
+    if [[ -n "$REMOTE_HEAD" ]]; then
+      EFFECTIVE_BASE="${REMOTE_HEAD#refs/remotes/origin/}"
+    fi
+  fi
+
+  if [[ -n "$EFFECTIVE_BASE" ]]; then
+    git -C "$SRC" worktree add -b "$BRANCH" "$DST" "$EFFECTIVE_BASE"
   else
     git -C "$SRC" worktree add -b "$BRANCH" "$DST"
   fi
