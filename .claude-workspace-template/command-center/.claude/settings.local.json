@@ -17,6 +17,32 @@
       "Bash(sleep *)",
       "Bash(curl *)",
       "Bash(wget *)"
+    ],
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Edit",
+      "Write",
+      "Bash(pwd)",
+      "Bash(wc *)",
+      "Bash(jq *)",
+      "Bash(echo *)",
+      "Bash(printf *)",
+      "Bash(git *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr status *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh pr review *)",
+      "Bash(gh repo view *)",
+      "Bash(gh run list *)",
+      "Bash(gh run view *)",
+      "Bash(gh workflow *)",
+      "Bash(gh browse *)",
+      "WebSearch",
+      "WebFetch"
     ]
   }
 }
