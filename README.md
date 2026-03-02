@@ -38,10 +38,10 @@ command-center (human-facing Claude Code session)
 ```bash
 git clone https://github.com/dkhaye/claude-multiagent
 cd claude-multiagent
-./new-project.sh my-project
+./new-project.sh [[PROJECT_NAME]]
 ```
 
-This copies the template to `~/projects/my-project`, substitutes all `[[PROJECT_NAME]]` placeholders, initialises git and beads-central, and prints next steps.
+This copies the template to `~/projects/[[PROJECT_NAME]]`, substitutes all `[[PROJECT_NAME]]` placeholders, initialises git and beads-central, and prints next steps.
 
 ## Project configuration
 
@@ -58,18 +58,18 @@ Each role has a `## Project Configuration` block at the top of its CLAUDE.md tha
 
 ```bash
 # Start agents in tmux
-cd ~/projects/my-project
+cd ~/projects/[[PROJECT_NAME]]
 ./launch-agents.sh
 
 # Open command center in a separate terminal
-cd ~/projects/my-project/.claude-workspace/command-center
+cd ~/projects/[[PROJECT_NAME]]/.claude-workspace/command-center
 claude
 ```
 
 ## Directory structure
 
 ```
-my-project/
+[[PROJECT_NAME]]/
 ├── .claude-workspace/          # Agent working directories and CLAUDE.md files
 │   ├── lead-agent/
 │   ├── author-template/

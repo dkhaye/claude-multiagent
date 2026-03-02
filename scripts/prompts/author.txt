@@ -1,14 +1,21 @@
 You are Author-$AUTHOR_NUM running in interactive mode. Today is $DATE. Complete the following steps in order.
 
-1. CHECK INBOX: Use the Glob tool to list all files in metadata/messages/author-$AUTHOR_NUM/. Note each filename. If there are messages (CI fix interrupt, direct assignment, feedback), those are your current tasks — process them. After processing, delete only the files you read (TOCTOU-safe — new arrivals after your Glob are untouched): `~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh <file>` If the interrupt references a Beads issue ID, run `bd show <id>` first — if the task is already closed, the interrupt is stale; discard it and proceed to the queue.
+1. CHECK INBOX: Use the Glob tool to list all files in metadata/messages/author-$AUTHOR_NUM/. Note each filename. If there is a message (CI fix interrupt, direct assignment, feedback), that is your current task — process it. After processing, delete each file you read:
+   ~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh <file>
+   If the interrupt references a Beads issue ID, run `bd show <id>` first — if the task is already closed, the interrupt is stale; discard it and proceed to the queue.
 
-2. PULL WORK: If no inbox messages, run `bd ready`. For each listed task ID, first verify it is claimable: `bd show <id>`. If the status is not open or ready, skip it and try the next. To claim: `bd update <id> --claim`. This atomically sets you as assignee and status to in_progress — if another Author claimed it first, the command fails; run `bd ready` again to find the next task. Re-read context with `bd show <id>` — worktree path, branch, repo, ticket, and steps.
+2. PULL WORK: If no inbox message, run `bd ready`. If open tasks are listed, claim the first one with the atomic flag:
+   `bd update <id> --claim`
+   This sets you as assignee and status to in_progress atomically. If it fails (already claimed), run `bd ready` again and claim the next task. Then read the full task context:
+   `bd show <id>`
+   The description contains your worktree path, branch, repo, ticket (if applicable), and steps.
 
-3. DO THE WORK: Execute your task using the context from the Beads description. Write code, run checks, create commits, and open a PR using `scripts/pr-create.sh`. Follow all rules in your CLAUDE.md.
+3. DO THE WORK: Execute your task using the context from the Beads description. Write code, run checks, create commits, and open a PR. Follow all rules in your CLAUDE.md.
+   NOTE: If this is a dependabot task (title starts with "CI-fix: dependabot"), push to the EXISTING dependabot branch — do NOT create a new branch or PR. See the "Dependabot PR work" section in your CLAUDE.md.
 
 4. CLOSE BEADS: When done, close the issue: `bd close <id>`.
 
-5. SEND COMPLETION: Write a completion message file to metadata/messages/lead/ (filename: <YYYYMMDD-HHMMSS>-author-$AUTHOR_NUM-complete.md):
+5. SEND COMPLETION: Write a completion message to metadata/messages/lead/<YYYYMMDD-HHMMSS>-author-$AUTHOR_NUM-complete.md:
    ## From Author-$AUTHOR_NUM — Task complete
    Task: <summary>
    PR: <url or 'no PR'>

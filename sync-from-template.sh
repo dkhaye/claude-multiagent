@@ -36,6 +36,48 @@ REPORT="$PROJECT_PATH/metadata/sync-report-$TIMESTAMP.md"
 
 log() { echo "$1" | tee -a "$REPORT"; }
 
+# ── Load known project names for cross-contamination check ──────────────────
+# Read from projects.json if available; always exclude the current project.
+BLOCKLIST_FILE="$TEMPLATE_ROOT/.template-blocklist"
+OTHER_PROJECTS=()
+if [[ -f "$TEMPLATE_ROOT/../projects.json" ]]; then
+  while IFS= read -r name; do
+    [[ "$name" == "$PROJECT_NAME" ]] && continue
+    [[ -z "$name" ]] && continue
+    OTHER_PROJECTS+=("$name")
+  done < <(jq -r '.projects[].name' "$TEMPLATE_ROOT/../projects.json" 2>/dev/null || true)
+fi
+
+# ── Validate a rendered script for contamination ─────────────────────────────
+# $1 = script name (for logging), $2 = rendered content, $3 = destination path (optional)
+validate_rendered() {
+  local script_name="$1"
+  local rendered="$2"
+  local VALID=true
+
+  # Rule 1: No unsubstituted [[...]] placeholders
+  if echo "$rendered" | grep -qE '\[\[[A-Z_]+\]\]'; then
+    log "  - **ERROR**: \`scripts/$script_name\` has unsubstituted placeholders after render:"
+    echo "$rendered" | grep -nE '\[\[[A-Z_]+\]\]' | head -3 | while IFS= read -r line; do
+      log "    $line"
+    done
+    VALID=false
+  fi
+
+  # Rule 2: No references to OTHER project names (cross-contamination)
+  for other in "${OTHER_PROJECTS[@]}"; do
+    if echo "$rendered" | grep -qF "$other"; then
+      log "  - **ERROR**: \`scripts/$script_name\` contains reference to OTHER project \`$other\` — cross-contamination!"
+      echo "$rendered" | grep -nF "$other" | head -3 | while IFS= read -r line; do
+        log "    $line"
+      done
+      VALID=false
+    fi
+  done
+
+  [[ "$VALID" == "true" ]]
+}
+
 log "# Template Sync Report — $TIMESTAMP"
 log ""
 log "Project: \`$PROJECT_PATH\`"
@@ -49,6 +91,7 @@ log ""
 SCRIPTS=(
   agent-loop.sh
   beads-publish.sh
+  check-workspace-isolation.sh
   ci-status.sh
   cleanup-worktrees.sh
   clear-inbox.sh
@@ -78,6 +121,12 @@ for script in "${SCRIPTS[@]}"; do
 
   # Substitute [[PROJECT_NAME]] and [[PROJECT_ROOT]] placeholders
   RENDERED="$(sed -e "s/\[\[PROJECT_NAME\]\]/$PROJECT_NAME/g" -e "s|\[\[PROJECT_ROOT\]\]|$PROJECT_PATH|g" "$SRC")"
+
+  # Validate the rendered output before writing
+  if ! validate_rendered "$script" "$RENDERED"; then
+    log "- **SKIPPED**: \`scripts/$script\` — validation failed (see errors above). Fix the template source."
+    continue
+  fi
 
   if [[ ! -f "$DST" ]]; then
     echo "$RENDERED" > "$DST"
@@ -113,7 +162,12 @@ for script in "${ROOT_SCRIPTS[@]}"; do
     continue
   fi
 
-  RENDERED="$(sed "s/\[\[PROJECT_NAME\]\]/$PROJECT_NAME/g" "$SRC")"
+  RENDERED="$(sed -e "s/\[\[PROJECT_NAME\]\]/$PROJECT_NAME/g" -e "s|\[\[PROJECT_ROOT\]\]|$PROJECT_PATH|g" "$SRC")"
+
+  if ! validate_rendered "$script" "$RENDERED"; then
+    log "- **SKIPPED**: \`$script\` — validation failed (see errors above). Fix the template source."
+    continue
+  fi
 
   if [[ ! -f "$DST" ]]; then
     echo "$RENDERED" > "$DST"
@@ -241,6 +295,28 @@ for role in "${ROLES[@]}"; do
     echo "$PROJ_SECTIONS" | while IFS= read -r line; do log "    $line"; done
   fi
 done
+
+log ""
+
+# ── 6. Workspace isolation check ────────────────────────────────────────────────
+log "## Isolation check"
+log ""
+
+ISOLATION_CHECK="$TEMPLATE_ROOT/scripts/check-workspace-isolation.sh"
+if [[ -f "$ISOLATION_CHECK" ]]; then
+  ISOLATION_OUTPUT=$("$ISOLATION_CHECK" "$PROJECT_PATH" 2>&1) || true
+  while IFS= read -r line; do
+    log "$line"
+  done <<< "$ISOLATION_OUTPUT"
+
+  if ! "$ISOLATION_CHECK" "$PROJECT_PATH" > /dev/null 2>&1; then
+    log ""
+    log "**WARNING: isolation check failed — cross-project references detected above.**"
+    log "Do NOT commit these files until the contamination is resolved."
+  fi
+else
+  log "- SKIP: \`scripts/check-workspace-isolation.sh\` not found in template"
+fi
 
 log ""
 log "---"

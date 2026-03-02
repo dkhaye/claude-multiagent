@@ -17,6 +17,18 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
   exit 0
 fi
 
+# ── Workspace isolation check ─────────────────────────────────────────────────
+# Catch cross-project contamination before any agent reads a poisoned file.
+ISOLATION_CHECK="$WORKSPACE_ROOT/scripts/check-workspace-isolation.sh"
+if [[ -f "$ISOLATION_CHECK" ]]; then
+  if ! "$ISOLATION_CHECK" "$WORKSPACE_ROOT" 2>&1; then
+    echo ""
+    echo "ERROR: Workspace isolation check failed. Agents NOT started." >&2
+    echo "Fix the cross-project references shown above, then re-run launch-agents.sh." >&2
+    exit 1
+  fi
+fi
+
 # Clear stale Beads lock files from any previous crashed agents.
 # Safe here because no tmux session (and therefore no bd process) is running.
 BEADS_DB="${BEADS_DIR:-$WORKSPACE_ROOT/beads-central/.beads}"
