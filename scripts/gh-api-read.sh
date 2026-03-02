@@ -28,7 +28,7 @@ for arg in "$@"; do
 done
 
 if [[ "$DECODE_CONTENT" == "true" ]]; then
-  gh api --method GET "$ENDPOINT" "${PASSTHROUGH[@]}" --jq '.content' | base64 --decode
+  gh api --method GET "$ENDPOINT" "${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"}" --jq '.content' | base64 --decode
 else
-  gh api --method GET "$ENDPOINT" "${PASSTHROUGH[@]}"
+  gh api --method GET "$ENDPOINT" "${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"}"
 fi
