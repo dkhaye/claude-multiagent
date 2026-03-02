@@ -175,6 +175,22 @@ Add `--remove-branches` to also delete the local feature branches. Do NOT add `2
 - **No `cd`.** Use flag-based alternatives: `git -C <path>`.
 - **All commands must be a single line.**
 
+## GitHub API reads — use gh-api-read.sh
+
+For GitHub API reads beyond what `gh pr view`/`gh run view` provide, always use `gh-api-read.sh` — never `gh api` directly. The wrapper enforces `--method GET`, making POST/PATCH/DELETE impossible through it.
+
+```
+~/projects/[[PROJECT_NAME]]/scripts/gh-api-read.sh <endpoint> [gh api flags...]
+~/projects/[[PROJECT_NAME]]/scripts/gh-api-read.sh <endpoint> --decode-content  # base64-decode file content
+```
+
+Examples:
+```
+~/projects/[[PROJECT_NAME]]/scripts/gh-api-read.sh repos/OWNER/REPO/contents/.github/workflows --jq '.[].name'
+~/projects/[[PROJECT_NAME]]/scripts/gh-api-read.sh repos/OWNER/REPO/contents/.github/workflows/build.yml --decode-content
+~/projects/[[PROJECT_NAME]]/scripts/gh-api-read.sh repos/OWNER/REPO/actions/runs --jq '.workflow_runs[0].status'
+```
+
 ## Inter-agent messaging (MANDATORY)
 
 Agents communicate via **directory-based file message passing**. Each agent's inbox is a directory under `metadata/messages/`:
