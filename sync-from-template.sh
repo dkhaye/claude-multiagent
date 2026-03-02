@@ -96,12 +96,17 @@ SCRIPTS=(
   cleanup-worktrees.sh
   clear-inbox.sh
   create-feature-worktrees.sh
-  env.sh
+  # env.sh intentionally excluded: it contains project-specific config
+  # (WORKSPACE_ROOT, NUM_AUTHORS, env sentinel variable) set at project
+  # creation time by new-project.sh and must not be overwritten by sync.
   gh-api-read.sh
   global-status.sh
   human-inbox.sh
   pr-close.sh
   pr-create.sh
+  prompts/author.txt
+  prompts/lead.txt
+  prompts/reviewer.txt
   sync-pr-state.sh
   tmp-clean.sh
   validate-path.sh
@@ -129,6 +134,7 @@ for script in "${SCRIPTS[@]}"; do
   fi
 
   if [[ ! -f "$DST" ]]; then
+    mkdir -p "$(dirname "$DST")"
     echo "$RENDERED" > "$DST"
     chmod +x "$DST" 2>/dev/null || true
     log "- **ADDED**: \`scripts/$script\` (new in template)"
