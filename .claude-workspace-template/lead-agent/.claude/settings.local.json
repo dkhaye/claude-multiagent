@@ -16,7 +16,10 @@
       "Bash(xargs *)",
       "Bash(sleep *)",
       "Bash(curl *)",
-      "Bash(wget *)"
+      "Bash(wget *)",
+      "Bash(test *)",
+      "Bash([ *)",
+      "Bash([[ *)"
     ],
     "allow": [
       "Read",
@@ -42,6 +45,7 @@
       "Bash(gh release list *)",
       "Bash(gh run *)",
       "Bash(gh workflow *)",
+      "Bash(gh browse *)",
       "Bash(tmux display-message*)",
       "Bash(tmux list-panes*)",
       "Bash(tmux capture-pane *)",
@@ -60,7 +64,23 @@
       "Bash(~/projects/[[PROJECT_NAME]]/scripts/check-workspace-isolation.sh*)",
       "Bash([[PROJECT_ROOT]]/scripts/check-workspace-isolation.sh*)",
       "WebSearch",
-      "WebFetch"
+      "WebFetch",
+      "mcp__atlassian__getAccessibleAtlassianResources",
+      "mcp__atlassian__atlassianUserInfo",
+      "mcp__atlassian__getJiraIssue",
+      "mcp__atlassian__getTransitionsForJiraIssue",
+      "mcp__atlassian__searchJiraIssuesUsingJql",
+      "mcp__atlassian__getVisibleJiraProjects",
+      "mcp__atlassian__getJiraProjectIssueTypesMetadata",
+      "mcp__atlassian__getJiraIssueTypeMetaWithFields",
+      "mcp__atlassian__getJiraIssueRemoteIssueLinks",
+      "mcp__atlassian__jiraRead",
+      "mcp__atlassian__lookupJiraAccountId",
+      "mcp__atlassian__search",
+      "mcp__atlassian__fetch",
+      "mcp__atlassian__getConfluencePage",
+      "mcp__atlassian__searchConfluenceUsingCql",
+      "mcp__atlassian__getConfluenceSpaces"
     ]
   }
 }
