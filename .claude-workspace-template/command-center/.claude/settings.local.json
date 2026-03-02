@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(rm *)",
+      "Bash(rm)",
+      "Bash(ls)",
+      "Bash(ls *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(sed *)",
+      "Bash(awk *)",
+      "Bash(mkdir *)",
+      "Bash(xargs *)",
+      "Bash(sleep *)",
+      "Bash(curl *)",
+      "Bash(wget *)"
+    ]
+  }
+}

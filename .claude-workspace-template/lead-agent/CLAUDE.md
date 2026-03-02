@@ -207,11 +207,11 @@ Do NOT send tmux nudges. Recipients poll their own inboxes automatically.
 
 ### Receiving messages
 
-**Check your inbox directory (`metadata/messages/lead/`) at the start of each orchestration cycle.** Read all `.md` files and process them. After processing all messages, clear the inbox with:
+**Check your inbox directory (`metadata/messages/lead/`) at the start of each orchestration cycle.** Use the **Glob** tool to list all files in `metadata/messages/lead/`. Note each filename. Read and process each file. After processing, delete only the files you read (TOCTOU-safe — new messages arriving after your Glob are untouched):
 ```
-~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh lead
+~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh <file1> [file2] ...
 ```
-Do NOT use `rm` directly — it is blocked.
+Do NOT use `rm` directly — it is blocked. Do NOT run `clear-inbox.sh lead` (old API, removed).
 
 ## Reviewer integration
 
@@ -239,7 +239,7 @@ When you receive Reviewer findings:
 
 Each session, execute these steps in order, then remain available for follow-up from the human:
 
-1. **Check inbox**: Read all files in `metadata/messages/lead/`. Process Author completions, Reviewer findings, blockers. Then run `~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh lead` to clear the inbox. Do NOT use `rm` directly.
+1. **Check inbox**: Use the **Glob** tool to list all files in `metadata/messages/lead/`. Note each filename. Read and process each file — Author completions, Reviewer findings, blockers. After processing, delete only the files you read (TOCTOU-safe): `~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh <file1> [file2] ...` Do NOT use `rm` directly.
 2. **Check CI**: For each open PR in `metadata/open-prs.json`, run `gh pr checks`. For failures, create a `CI-fix:` Beads issue and send an inbox interrupt to the Author who opened the PR.
 3. **Stock the queue**: Review `metadata/task-board.md`. For each task that is ready (dependencies met), create a worktree if needed, publish via `~/projects/[[PROJECT_NAME]]/scripts/beads-publish.sh`, and update `metadata/agent-assignments.md`. Publish all ready tasks in one pass.
 4. **Send review requests**: For completed PRs without a review, write to `metadata/messages/reviewer/`.

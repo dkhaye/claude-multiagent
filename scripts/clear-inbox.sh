@@ -1,16 +1,34 @@
 #!/usr/bin/env bash
-# clear-inbox.sh — Remove all processed .md messages from an agent's inbox directory.
-# Leaves .gitkeep in place. Safe to run even if the inbox is already empty.
-# Usage: clear-inbox.sh <agent-name>
+# clear-inbox.sh — Delete specific processed inbox message files.
+# Pass the exact file paths you have already read and processed.
+#
+# This is TOCTOU-safe: only deletes files you explicitly name.
+# New messages that arrive after you started reading are untouched.
+#
+# Usage: clear-inbox.sh <file1.md> [file2.md] ...
+# Example:
+#   clear-inbox.sh \
+#     ~/projects/[[PROJECT_NAME]]/metadata/messages/lead/20260227-130000-cc-task.md \
+#     ~/projects/[[PROJECT_NAME]]/metadata/messages/lead/20260227-131500-author-1-done.md
 set -euo pipefail
-WORKSPACE_ROOT="${WORKSPACE_ROOT:-$HOME/projects/[[PROJECT_NAME]]}"
-AGENT="${1:?Usage: clear-inbox.sh <agent-name>}"
-INBOX_DIR="$WORKSPACE_ROOT/metadata/messages/$AGENT"
-[[ -d "$INBOX_DIR" ]] || { echo "Inbox not found: $INBOX_DIR"; exit 1; }
+
+if [[ $# -eq 0 ]]; then
+  echo "Usage: clear-inbox.sh <file1.md> [file2.md] ..."
+  exit 1
+fi
+
 count=0
-for f in "$INBOX_DIR"/*.md; do
-  [[ -e "$f" ]] || continue
-  [[ "$f" == *".gitkeep" ]] && continue
-  rm "$f" && count=$((count + 1))
+for f in "$@"; do
+  if [[ ! -f "$f" ]]; then
+    echo "Skipping (not found): $f"
+    continue
+  fi
+  if [[ "$f" != *.md ]]; then
+    echo "Skipping (not .md): $f"
+    continue
+  fi
+  rm "$f"
+  count=$((count + 1))
 done
-echo "Cleared $count message(s) from $AGENT inbox."
+
+echo "Deleted $count message(s)."

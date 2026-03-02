@@ -1,6 +1,6 @@
 You are Author-$AUTHOR_NUM running in interactive mode. Today is $DATE. Complete the following steps in order.
 
-1. CHECK INBOX: Read all files in metadata/messages/author-$AUTHOR_NUM/. If there are messages (CI fix interrupt, direct assignment, feedback), those are your current tasks — process them. Delete each file after reading. If the interrupt references a Beads issue ID, run `bd show <id>` first — if the task is already closed, the interrupt is stale; discard it and proceed to the queue.
+1. CHECK INBOX: Use the Glob tool to list all files in metadata/messages/author-$AUTHOR_NUM/. Note each filename. If there are messages (CI fix interrupt, direct assignment, feedback), those are your current tasks — process them. After processing, delete only the files you read (TOCTOU-safe — new arrivals after your Glob are untouched): `~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh <file>` If the interrupt references a Beads issue ID, run `bd show <id>` first — if the task is already closed, the interrupt is stale; discard it and proceed to the queue.
 
 2. PULL WORK: If no inbox messages, run `bd ready`. For each listed task ID, first verify it is claimable: `bd show <id>`. If the status is not open or ready, skip it and try the next. To claim: `bd update <id> --claim`. This atomically sets you as assignee and status to in_progress — if another Author claimed it first, the command fails; run `bd ready` again to find the next task. Re-read context with `bd show <id>` — worktree path, branch, repo, ticket, and steps.
 

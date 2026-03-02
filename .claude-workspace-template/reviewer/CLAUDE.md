@@ -146,7 +146,7 @@ Do NOT send tmux nudges. Recipients poll their own inboxes automatically.
 
 ### Receiving messages
 
-Check all files in your inbox directory (`metadata/messages/reviewer/`) at the start of each cycle. Process all messages and delete each file after handling.
+Use the **Glob** tool to list all files in your inbox directory (`metadata/messages/reviewer/`) at the start of each cycle. Note each filename. Process all messages and delete each file after handling (TOCTOU-safe): `~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh <file>`
 
 ## Web search
 

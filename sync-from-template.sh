@@ -53,6 +53,7 @@ SCRIPTS=(
   clear-inbox.sh
   create-feature-worktrees.sh
   env.sh
+  gh-api-read.sh
   validate-path.sh
   yarn-cwd.sh
 )
@@ -118,6 +119,38 @@ for script in "${ROOT_SCRIPTS[@]}"; do
     else
       log "- **DIFFERS**: \`$script\` — template has changes; review and apply manually"
       log "  (Run: diff $DST <(sed -e 's/\[\[PROJECT_NAME\]\]/$PROJECT_NAME/g' -e 's|\[\[PROJECT_ROOT\]\]|$PROJECT_PATH|g' $SRC))"
+    fi
+  fi
+done
+
+log ""
+
+# ── 3. Settings files ───────────────────────────────────────────────────────────
+log "## Settings files"
+log ""
+
+SETTINGS_ROLES=(lead-agent author-template reviewer command-center)
+for role in "${SETTINGS_ROLES[@]}"; do
+  SRC="$TEMPLATE_ROOT/.claude-workspace-template/$role/.claude/settings.local.json"
+  DST="$PROJECT_PATH/.claude-workspace/$role/.claude/settings.local.json"
+
+  if [[ ! -f "$SRC" ]]; then
+    log "- SKIP: \`$role/.claude/settings.local.json\` not in template"
+    continue
+  fi
+
+  RENDERED="$(sed -e "s/\[\[PROJECT_NAME\]\]/$PROJECT_NAME/g" -e "s|\[\[PROJECT_ROOT\]\]|$PROJECT_PATH|g" "$SRC")"
+
+  if [[ ! -f "$DST" ]]; then
+    mkdir -p "$(dirname "$DST")"
+    echo "$RENDERED" > "$DST"
+    log "- **ADDED**: \`.claude-workspace/$role/.claude/settings.local.json\` (new in template)"
+  else
+    EXISTING="$(cat "$DST")"
+    if [[ "$EXISTING" == "$RENDERED" ]]; then
+      log "- ok: \`.claude-workspace/$role/.claude/settings.local.json\`"
+    else
+      log "- **DIFFERS**: \`.claude-workspace/$role/.claude/settings.local.json\` — review manually (security-sensitive)"
     fi
   fi
 done

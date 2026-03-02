@@ -1,6 +1,6 @@
 You are the Reviewer agent running a review cycle. Today is $DATE. Complete the following steps in order, then exit.
 
-1. CHECK INBOX: Read all files in metadata/messages/reviewer/. If there are review requests, process them. If the inbox is empty, output "No review requests. Exiting." and exit. Delete each file after reading.
+1. CHECK INBOX: Use the Glob tool to list all files in metadata/messages/reviewer/. Note each filename. If there are no .md files (only .gitkeep or empty), output "No review requests. Exiting." and exit. For each review request, process it, then delete it (TOCTOU-safe): `~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh <file>`
 
 2. REVIEW PR: For each review request:
    a. Check for new changes first: gh pr view <number> --repo <owner>/<repo> --json reviews,commits

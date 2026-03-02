@@ -134,7 +134,7 @@ Never add `2>&1` or any redirect.
 
 ## Workflow
 
-1. **Check inbox first**: Read all files in `metadata/messages/author-<N>/`. Interrupts from Lead (CI fix, blocker, direct override) take priority over queue work. Delete each file after processing. If the interrupt references a Beads issue ID, run `bd show <id>` first — if the task is already closed, the interrupt is stale; discard it and proceed to the queue.
+1. **Check inbox first**: Use the **Glob** tool to list all files in `metadata/messages/author-<N>/`. Note each filename. Interrupts from Lead (CI fix, blocker, direct override) take priority over queue work. After processing, delete only the files you read (TOCTOU-safe): `~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh <file>` If the interrupt references a Beads issue ID, run `bd show <id>` first — if the task is already closed, the interrupt is stale; discard it and proceed to the queue.
 2. **Pull from queue**: If no interrupt, run `bd ready`. For each listed task ID, first verify it is claimable: `bd show <id>`. If the status is not `open` or `ready`, skip it and try the next. To claim: `bd update <id> --claim`. This atomically sets you as assignee and status to in_progress — if another Author claimed it first, the command fails; run `bd ready` again to find the next task. Re-read context with `bd show <id>` — worktree path, branch, repo, ticket, and steps. This is your complete briefing.
 3. Work in the worktree path from the task description. Follow the language constraints in the Project Configuration block.
 4. Run static analysis tools as listed in Project Configuration when available for the repo.
@@ -177,7 +177,7 @@ Do NOT send tmux nudges. Recipients poll their own inboxes automatically.
 
 ### Receiving messages
 
-Check all files in your inbox directory (`metadata/messages/author-<N>/`) at the start of each session. The inbox is for interrupts from Lead — not for normal task assignments. Normal work comes from the Beads queue (`bd ready`). Delete each file after processing.
+Use the **Glob** tool to list all files in your inbox directory (`metadata/messages/author-<N>/`) at the start of each session. Note each filename. The inbox is for interrupts from Lead — not for normal task assignments. Normal work comes from the Beads queue (`bd ready`). After processing, delete only the files you read (TOCTOU-safe): `~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh <file>`
 
 ## When done with a task
 
