@@ -5,9 +5,13 @@
 #
 # Command center (run separately, outside tmux):
 #   cd $WORKSPACE_ROOT/.claude-workspace/command-center && claude
+#
+# Example:
+#   ~/projects/[[PROJECT_NAME]]/launch-agents.sh
 set -euo pipefail
 
 WORKSPACE_ROOT="${WORKSPACE_ROOT:-$HOME/projects/[[PROJECT_NAME]]}"
+# shellcheck source=scripts/env.sh
 source "$WORKSPACE_ROOT/scripts/env.sh"
 SESSION="[[PROJECT_NAME]]"
 LOOP="$WORKSPACE_ROOT/scripts/agent-loop.sh"
@@ -33,7 +37,20 @@ fi
 # Safe here because no tmux session (and therefore no bd process) is running.
 BEADS_DB="${BEADS_DIR:-$WORKSPACE_ROOT/beads-central/.beads}"
 rm -f "$BEADS_DB/dolt-access.lock"
-rm -f "$BEADS_DB/dolt/beads_beads-central/.dolt/noms/LOCK"
+# Derive the Dolt database name from metadata.json so this path stays correct
+# if the database was named differently at init time (avoids hardcoding).
+DOLT_DB_NAME="$(jq -r '.dolt_database // empty' "$BEADS_DB/metadata.json" 2>/dev/null || true)"
+if [[ -n "$DOLT_DB_NAME" ]]; then
+  rm -f "$BEADS_DB/dolt/$DOLT_DB_NAME/.dolt/noms/LOCK"
+fi
+
+# Start Beads dolt SQL server (server mode — required for concurrent agent access).
+# Skip start if server is already running; start it otherwise.
+if bd dolt test > /dev/null 2>&1; then
+  echo "Dolt server already running — skipping start."
+else
+  bd dolt start || echo "Warning: bd dolt start failed — check $BEADS_DB/dolt-server.log"
+fi
 
 # Clean up stale temp files from previous sessions
 if [[ -f "$WORKSPACE_ROOT/scripts/tmp-clean.sh" ]]; then
