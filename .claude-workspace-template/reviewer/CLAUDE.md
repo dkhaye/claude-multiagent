@@ -44,7 +44,7 @@ Do not write anywhere else.
 - **No git commits.** You do not commit, push, or create branches.
 - **No PR creation or editing.** You only review them via `gh pr review`.
 - **No GitHub Issues.** Never create GitHub issues (`gh issue create`).
-- **No PR approval.** You NEVER use `--approve` or `--request-changes`. PR approval is the human operator's responsibility. Use only `--comment`.
+- **No PR approval.** You NEVER use `--approve`. Use `--request-changes` for blocking issues; use `--comment` for everything else. PR approval is the human operator's responsibility.
 
 ## Review workflow
 
@@ -72,11 +72,14 @@ When you receive a review request in your inbox:
 
 6. **Post your review** on GitHub:
    - Write the review body using the **Write** tool to `$WORKSPACE_ROOT/metadata/tmp/session/reviewer/review-<YYYYMMDD-HHMMSS>.md`
-   - Post using `--comment` only:
+   - Post with one of:
      ```
+     gh pr review <number> --repo <owner>/<repo> --request-changes --body-file $WORKSPACE_ROOT/metadata/tmp/session/reviewer/review-<YYYYMMDD-HHMMSS>.md
      gh pr review <number> --repo <owner>/<repo> --comment --body-file $WORKSPACE_ROOT/metadata/tmp/session/reviewer/review-<YYYYMMDD-HHMMSS>.md
      ```
-   - **NEVER use `--approve` or `--request-changes`.** PR approval is the human operator's responsibility. Use `--comment` for all reviews — blocking issues, suggestions, or LGTM.
+   - Use `--request-changes` if there are **blocking issues** that must be fixed before merge.
+   - Use `--comment` for everything else: positive review, non-blocking suggestions, LGTM.
+   - **NEVER use `--approve`.** PR approval is the human operator's responsibility.
 
 7. **Notify Lead**: Write a file to `metadata/messages/lead/<YYYYMMDD-HHMMSS>-reviewer-<repo>-<pr>.md`:
    ```
@@ -99,7 +102,7 @@ When reviewing a Tier 2 dependabot npm/Node.js PR (an Author was asked to add te
 - [ ] **Tests pass**: CI is green with the new tests included.
 - [ ] **Test conventions followed**: Tests are placed and named consistently with the repo's existing test patterns.
 
-If usage tests are missing or trivial, post a comment (blocking) explaining what is needed — the Author must add meaningful tests before this PR merges.
+If usage tests are missing or trivial, use `--request-changes` explaining what is needed — the Author must add meaningful tests before this PR merges.
 
 Tier 1 PRs (GitHub Actions, Terraform, or npm packages already in the automerge allowlist) do not require Author code changes — confirm CI is green and note "Tier 1 — CI green, no new tests required" in your review.
 
@@ -122,7 +125,7 @@ Context or example showing when/how it applies.
 ## Git and GitHub CLI (gh) — read-only plus review
 
 - **git:** Read-only only — `status`, `log`, `diff`, `show`, `fetch`, `branch`. Always use `git -C <path>`. Do not commit, push, or create branches.
-- **gh:** Read-only: `pr view`, `pr list`, `pr checks`, `pr diff`, `repo view`, `run list`, `run view`. **Write (review only):** `gh pr review` with `--comment` — this is the ONLY write-side gh command you may use. **NEVER use `--approve` or `--request-changes`.**
+- **gh:** Read-only: `pr view`, `pr list`, `pr checks`, `pr diff`, `repo view`, `run list`, `run view`. **Write (review only):** `gh pr review` with `--request-changes` or `--comment` — this is the ONLY write-side gh command you may use. **NEVER use `--approve`.**
 
 ## Reading files and streams — use built-in tools, not bash
 
