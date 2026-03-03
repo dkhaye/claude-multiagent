@@ -66,7 +66,8 @@ if [[ -f "$BLOCKLIST" ]]; then
     printf '%s\n' "$line" >> "$ENTRIES_TMP"
   done < "$BLOCKLIST"
 else
-  printf 'WARNING: .template-blocklist not found at %s\n' "$BLOCKLIST" >&2
+  printf 'WARNING: No .template-blocklist found — project-specific string check skipped.\n' >&2
+  printf '  Create %s with your project names and paths to enable this check.\n' "$BLOCKLIST" >&2
 fi
 
 # ── scan each file ─────────────────────────────────────────────────────────────

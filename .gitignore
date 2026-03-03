@@ -24,3 +24,6 @@ metadata-template/logs/*.log
 # Temp files
 metadata-template/tmp/beads/*.md
 metadata-template/tmp/session/**/*.md
+
+# Local-only blocklist — each user maintains their own; never commit
+.template-blocklist
