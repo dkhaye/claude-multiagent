@@ -51,7 +51,7 @@ violation() {
 # ── Collect other known project names ────────────────────────────────────────
 # Read from projects.json (sibling of the template root, inside .global/)
 OTHER_PROJECTS=()
-PROJECTS_JSON="$TEMPLATE_ROOT/../projects.json"
+PROJECTS_JSON="$TEMPLATE_ROOT/../.global/projects.json"
 if [[ -f "$PROJECTS_JSON" ]]; then
   while IFS= read -r name; do
     [[ "$name" == "$PROJECT_NAME" ]] && continue
