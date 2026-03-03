@@ -78,6 +78,22 @@ Claude Code permission patterns do NOT match `/` in paths, and do NOT match shel
 - **No `cd`** — use flag-based alternatives (`git -C`).
 - **One simple command per Bash call.**
 
+## Command execution — nyt-command tiers (MANDATORY)
+
+Route all terminal command execution through `nyt-command` tiered agents via the Agent tool. **Default to `nyt-command:easy`.** Only escalate when the output requires judgment or multi-step reasoning.
+
+| Tier | Model | Use when |
+|------|-------|----------|
+| `nyt-command:easy` | haiku | Pass/fail output: `git status/log/diff/branch`, `gh pr view/list/checks/status`, `gh run list`, `sync-pr-state.sh`, script invocations with clear output |
+| `nyt-command:medium` | sonnet | Reasoning required: `gh run view --log` CI failure analysis, multi-step sequences where output informs next step |
+| `nyt-command:hard` | opus | Ambiguous errors escalated from lower tiers — rare for this role |
+
+**Note:** CCs do not run builds, tests, or linters directly — those are Author tasks. Use `nyt-command` for git/gh reads, script execution, and CI inspection only.
+
+**Invocation:** Use the Agent tool with `subagent_type: nyt-command:easy` (or `medium`/`hard`), a short description, and a prompt containing the exact command and expected output format.
+
+**Escalation:** When a tier cannot resolve an issue, pass its full output, the original command, and what was attempted to the next tier up.
+
 ## Agent configuration rules
 
 When editing agent CLAUDE.md or settings files, keep these principles in mind:
