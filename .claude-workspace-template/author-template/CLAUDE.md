@@ -159,6 +159,26 @@ Do NOT use bare `yarn --cwd <path>` for corepack repos — corepack resolves the
 
 **For repos using Yarn v1 without corepack:** use `yarn --cwd <path>` directly.
 
+**Running non-yarn node binaries** (e.g. `tsc`, `publint`, a workspace-local binary): use **`node-exec.sh`**:
+```
+$WORKSPACE_ROOT/scripts/node-exec.sh <project-dir> <command> [args...]
+```
+Examples:
+```
+# Run a workspace-local binary (binary lives in a parent workspace node_modules)
+$WORKSPACE_ROOT/scripts/node-exec.sh /worktrees/feat/pkg /worktrees/feat/node_modules/.bin/publint .
+
+# Run node directly with the right NVM version
+$WORKSPACE_ROOT/scripts/node-exec.sh /worktrees/feat/pkg node --version
+```
+`node-exec.sh` loads NVM and activates the node version from the project dir's `.nvmrc` before running the command. Use it any time you need a node binary with the right NVM version — never compose the NVM sourcing manually in a Bash command.
+
+**DO NOT** write compound NVM commands in Bash — they are blocked:
+```
+# BLOCKED — compound operators and cd are not allowed in Bash tool calls
+export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh" --no-use && nvm exec v24 bash -c "..."
+```
+
 Never add `2>&1` or any redirect.
 
 ## Dependabot PR work
@@ -199,7 +219,19 @@ When your Beads task is a dependabot fix (`CI-fix: dependabot ...`), the workflo
 ## Workflow
 
 1. **Check inbox first**: Use the **Glob** tool to list all files in `metadata/messages/author-<N>/`. Note each filename. Interrupts from Lead (CI fix, blocker, direct override) take priority over queue work. After processing, delete only the files you read (TOCTOU-safe): `~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh <file>` If the interrupt references a Beads issue ID, run `bd show <id>` first — if the task is already closed, the interrupt is stale; discard it and proceed to the queue.
-2. **Pull from queue**: If no interrupt, run `bd ready`. For each listed task ID, first verify it is claimable: `bd show <id>`. If the status is not `open` or `ready`, skip it and try the next. To claim: `bd update <id> --claim`. This atomically sets you as assignee and status to in_progress — if another Author claimed it first, the command fails; run `bd ready` again to find the next task. Re-read context with `bd show <id>` — worktree path, branch, repo, ticket, and steps. This is your complete briefing.
+2. **Pull from queue**: If no interrupt, run `bd ready`. For each listed task ID:
+   a. **Check it is open**: `bd show <id>`. If status is not `open` or `ready`, skip it and try the next.
+   b. **Claim it exclusively**: `bd update <id> --claim`.
+      - **If the command fails (non-zero exit or any error output): HARD STOP on this task.** Do not touch the worktree. Do not do any work. Write a message to `metadata/messages/lead/<YYYYMMDD-HHMMSS>-author-<N>-claim-failed.md`:
+        ```
+        ## From Author-<N> — Claim failed
+        Task: <id>
+        Error: <exact error output from bd update --claim>
+        Action: Skipping this task. Awaiting reassignment or queue update.
+        ```
+        Then run `bd ready` again and try the next task. If the queue is empty, report idle.
+      - **If the command succeeds: immediately verify** with `bd show <id>` that you are listed as the assignee. If the assignee field shows a different author, someone else claimed it first despite your command appearing to succeed. HARD STOP: write the same claim-failed message to Lead and try the next task.
+   c. **Only after confirmed exclusive ownership**: re-read the full task with `bd show <id>` to get worktree path, branch, repo, ticket, and steps. This is your complete briefing. **Never begin any file edits, git operations, or worktree work before exclusive claim is confirmed.**
 3. Work in the worktree path from the task description. Follow the language constraints in the Project Configuration block.
 4. Run static analysis tools as listed in Project Configuration when available for the repo.
 5. Create PRs via `gh pr create` — follow the PR rules below. Do not merge without human approval.

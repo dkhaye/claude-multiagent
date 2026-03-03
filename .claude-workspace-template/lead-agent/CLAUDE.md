@@ -154,6 +154,18 @@ The issue becomes visible to Authors via `bd ready` as soon as it is created. Do
 
 **DEDUPLICATION GUARD (mandatory before any direct assignment):** Before sending a direct inbox message to assign work to an Author, run `bd list --all` and scan for any open/in-progress Beads task targeting the same repo and worktree/branch. If one exists, do NOT send a direct assignment — the Author will pull the Beads task from the queue naturally. Sending the same work through both a Beads task AND a direct inbox message causes two Authors to do identical work and open duplicate PRs. The only safe direct assignments are CI fix interrupts (where the Beads issue was just created and you are pointing the specific Author who opened the PR to their own fix).
 
+**ATOMIC ASSIGNMENT (mandatory when idle authors exist):** When you publish a new task and there are idle Authors available, you MUST send a direct targeted inbox message to exactly ONE specific idle Author per task — immediately after publishing, before your next action. Use this format:
+
+```
+## From Lead — Task available: <id>
+Pull and claim this task: bd show <id>
+Do not start until bd update <id> --claim confirms exclusive ownership.
+```
+
+One task → one author. If you have two idle authors and two tasks, send each to a different author. If you have two idle authors and one task, send to one author only — leave the other idle. **Never publish a task to the open queue and leave it unclaimed when idle authors are present.** A task sitting in OPEN state with multiple idle authors racing to claim it is a defect in your orchestration — it produces duplicate PRs and wastes tokens.
+
+Authors are required to fail fast if a claim fails (see Author CLAUDE.md). Your job is to prevent the race before it starts by routing each task to exactly one author at publish time.
+
 ### Beads task description format
 
 The description is the Author's only briefing. It must include everything they need to start without asking questions:
@@ -259,6 +271,32 @@ Classify each new dependabot PR by title prefix:
 3. Add to `metadata/open-prs.json` with `"author": "dependabot", "tier": 2`
 4. After Author completes: send review request to Reviewer (same format as normal PRs)
 5. After Reviewer approves: add to task-board "Human merge list" section
+
+### Dependabot automerge allowlist (after a Tier 2 PR merges)
+
+After a Tier 2 dependabot PR is merged and tests passed without workarounds, create a follow-up Beads task to add the package to the repo's automerge allowlist so future bumps auto-merge as Tier 1:
+
+1. Create a worktree off the default branch:
+   ```
+   ~/projects/[[PROJECT_NAME]]/scripts/create-feature-worktrees.sh automerge-<package> --repo <owner>/<repo> --branch dh-automerge-<package>
+   ```
+2. Create a Beads task with title: `chore: add <package> to dependabot automerge — <repo>` and description:
+   ```
+   Worktree: ~/projects/[[PROJECT_NAME]]/worktrees/automerge-<package>/<repo>/
+   Branch: dh-automerge-<package>
+   Repo: <owner>/<repo>
+   Ticket: none
+
+   ## What to do
+   Package <package> was verified safe in dependabot PR #<number> (now merged).
+   Add it to the automerge allowlist so future dependabot bumps auto-merge as Tier 1.
+   1. Open the repo's dependabot automerge config (e.g. `.github/workflows/dependabot-automerge.yml`).
+   2. Add `<package>` to the npm allowlist in the same format as existing entries.
+   3. Open a PR from `dh-automerge-<package>` → `<default-branch>`.
+
+   ## Reminders
+   - Only add the package if PR #<number> passed without requiring workarounds for breaking changes.
+   ```
 
 ## Git and GitHub CLI (gh) — orchestrate only
 
@@ -390,15 +428,26 @@ Look for: <specific concerns>
 
 When you receive Reviewer findings:
 - **request-changes**: create a fix task and assign it to an available Author.
-- **comment/lgtm**: note it and write to human inbox — PR is ready for human merge.
+- **comment/lgtm**: Record the Reviewer verdict in `open-prs.json` notes. Then check `human_approved` for that PR:
+  - `true` → write to human inbox: PR has Reviewer LGTM and human GitHub approval, ready to merge.
+  - `false` → **do NOT write to human inbox yet.** The human cannot merge without a GitHub approval from another human. Wait — `sync-pr-state.sh --approvals` will detect the approval at the next session and trigger the inbox notification then.
+
+**Rule: never raise an agent-authored PR as "ready to merge" unless `human_approved: true` in `open-prs.json`.**
+
+**PR approval constraints (all agent-opened PRs):** Authors open PRs using the operator's GitHub credentials, so the operator is the GitHub PR author and **cannot self-approve** on GitHub. Apply these rules for all PRs in `open-prs.json`:
+- **Never prompt the operator for a GitHub approval action.** Do NOT write "awaiting human GitHub approval" — the operator cannot approve their own PR.
+- Wait silently for an external GitHub approval. `sync-pr-state.sh --approvals` detects it and sets `human_approved: true` automatically.
+- **24-hour escalation:** If a PR has Reviewer LGTM (or no review required) and `human_approved` is still `false`, check whether 24 hours have elapsed since the PR was opened (`gh pr view <number> --repo <owner>/<repo> --json createdAt`). If ≥24 hours have passed AND `gh pr view <number> --repo <owner>/<repo> --json reviews` returns an empty reviews array (no human has reviewed yet), AND `slack_escalated` is not already `true` in `open-prs.json`:
+  1. Write ONE message to the human inbox asking them to post in Slack to request a review/approval from a teammate. Include the PR URL.
+  2. Set `"slack_escalated": true` in `open-prs.json` for that PR so this message fires only once.
 
 ## Orchestration cycle
 
 Each session, execute these steps in order, then remain available for follow-up from the human:
 
-0. **Sync PR state** *(always first)*: Run `~/projects/[[PROJECT_NAME]]/scripts/sync-pr-state.sh` and read its output. This moves merged/closed PRs out of `open_prs` and updates `open-prs.json` in place. Note any newly-merged PRs and continue.
+0. **Sync PR state** *(always first)*: Run `~/projects/[[PROJECT_NAME]]/scripts/sync-pr-state.sh --approvals` and read its output. This moves merged/closed PRs out of `open_prs`, updates CI status, and refreshes human GitHub approval state. Note any newly-merged PRs and PRs that became `human_approved: true` — those trigger the "ready to merge" notification in Step 1. To also refresh CI status in one pass, use `--ci --approvals` (costs one `gh pr checks` call per PR — use when many PRs show `ci_unknown` or `ci_pending`).
 1. **Check inbox**: Use the **Glob** tool to list all files in `metadata/messages/lead/`. Note each filename. Read and process each file — Author completions, Reviewer findings, blockers. After processing, delete only the files you read (TOCTOU-safe): `~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh <file1> [file2] ...` Do NOT use `rm` directly.
-2. **Check CI**: For each open PR in `metadata/open-prs.json` with status `ci_failing` or `ci_unknown`, run `gh pr checks <number> --repo <owner>/<repo>`. For failures, create a `CI-fix:` Beads issue and send an inbox interrupt to the Author who opened the PR. Skip PRs already marked `ci_green` unless Step 0 flagged a change.
+2. **Check CI and approvals**: For each open PR in `metadata/open-prs.json` with status `ci_failing` or `ci_unknown`, run `gh pr checks <number> --repo <owner>/<repo>`. For failures, create a `CI-fix:` Beads issue and send an inbox interrupt to the Author who opened the PR. Skip PRs already marked `ci_green` unless Step 0 flagged a change. Also check the 24-hour escalation rule (see Reviewer integration) for any PR with Reviewer LGTM but `human_approved: false`.
 3. **Stock the queue**: Review `metadata/task-board.md`. For each task that is ready (dependencies met), create a worktree if needed, publish via `~/projects/[[PROJECT_NAME]]/scripts/beads-publish.sh`, and update `metadata/agent-assignments.md`. Publish all ready tasks in one pass.
 4. **Send review requests**: For completed PRs without a review, write to `metadata/messages/reviewer/`.
 5. **Write lead-status.md + report**: Update `metadata/lead-status.md` with current state (merge queue, beads queue, human actions, agent assignments). Then output a brief session summary and wait for further instructions from the human.
