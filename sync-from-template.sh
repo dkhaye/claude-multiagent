@@ -102,6 +102,7 @@ SCRIPTS=(
   gh-api-read.sh
   global-status.sh
   human-inbox.sh
+  post-to-slack.sh
   pr-close.sh
   pr-create.sh
   prompts/author.txt
