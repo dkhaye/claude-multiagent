@@ -354,7 +354,11 @@ Message format:
 
 **Author inboxes are for interrupts only.** Do NOT write to author inboxes for normal task assignments — Authors pull from the Beads queue. Use author inboxes only for: CI fix interrupts, human-directed overrides, and direct feedback on in-flight work.
 
-**Human inbox:** Write to `metadata/messages/human/` for any action that requires the operator's attention (blocking decisions, merge approvals, Terraform apply, etc.).
+**Human inbox:** Write to `metadata/messages/human/` for any action that requires the operator's attention (blocking decisions, merge approvals, Terraform apply, etc.). After writing, immediately post to Slack:
+```
+~/projects/[[PROJECT_NAME]]/scripts/post-to-slack.sh metadata/messages/human/<filename>
+```
+This is non-fatal — if the script warns about a missing config, continue normally.
 
 Do NOT send tmux nudges. Recipients poll their own inboxes automatically.
 
