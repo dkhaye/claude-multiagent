@@ -154,15 +154,19 @@ You may search the web when needed for review context: docs for frameworks and p
 
 ## Beads failures — escalate, do not fix
 
-**`bd` error handling — two distinct cases:**
+**`bd` error handling — three distinct cases:**
 
-**Case 1 — Lock contention** (error contains "failed to acquire dolt access lock" or "lock busy"):
+**Case 1 — Connection error** ("connection refused", "dial tcp", "no such host"): the dolt SQL server is not running.
+- Write to `metadata/messages/human/` and stop — do NOT attempt to start the server yourself.
+- Do not retry; this is not transient.
+
+**Case 2 — Lock contention** (error contains "failed to acquire dolt access lock" or "lock busy"):
 - This is transient. Another agent is briefly holding the database lock.
 - Wait 30 seconds, then retry the same command. Retry up to 3 times.
 - If all 3 retries fail, write the error to `metadata/messages/human/` (timestamped file) and stop.
 - Do NOT delete lock files yourself. Do NOT run `bd doctor`.
 
-**Case 2 — Real crash** (nil pointer panic, "tables changed", segfault, or any exit code 2 that is NOT a lock error):
+**Case 3 — Real crash** (nil pointer panic, "tables changed", segfault, or any exit code 2 that is NOT a lock or connection error):
 - **STOP. Do not attempt to fix it yourself.**
 - Write the error to `metadata/messages/human/` (timestamped file) and wait.
 - The Command Center (human) is the only one who repairs Beads infrastructure.

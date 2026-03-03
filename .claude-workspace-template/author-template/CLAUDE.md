@@ -89,7 +89,7 @@ You author code and PRs; do not create worktrees or edit `metadata/agent-assignm
      ```
   Use a unique timestamp in the filename so it never conflicts with another session.
 
-- **gh:** Read-only: `pr view`, `pr list`, `pr status`, `pr checks`, `pr diff`, `repo view`, `run list`, `workflow view`. Write: `pr create`, `pr edit`. Do not merge PRs; leave that to the human. NEVER create GitHub issues (`gh issue create`). **Do NOT use `gh api`** — it is not permitted.
+- **gh:** Read-only: `pr view`, `pr list`, `pr status`, `pr checks`, `pr diff`, `repo view`, `run list`, `workflow view`. Write: `pr create`, `pr edit`, `pr checkout`. Do not merge PRs; leave that to the human. NEVER create GitHub issues (`gh issue create`). **Do NOT use `gh api`** — it is not permitted.
 
 - **Creating PRs:** Multi-line `--body "..."` strings trigger permission prompts. **Always use a file for PR bodies:**
   1. Use the **Write** tool to write the full PR body to `$WORKSPACE_ROOT/metadata/tmp/session/author-<N>/pr-body-<YYYYMMDD-HHMMSS>.md` (follow the repo's PR template — see PR rules below).
@@ -132,6 +132,21 @@ gh run view <run-id> --repo <org>/<repo-name> --log
 
 You may search the web when needed for authoring: docs for frameworks and providers, GitHub Actions syntax, language or library APIs, and similar. Use search to implement tasks correctly; do not rely on it for sensitive or internal data.
 
+## GitHub API reads — use gh-api-read.sh
+
+**Never use `gh api` directly.** Use the read-only wrapper to avoid accidental mutations:
+```
+$WORKSPACE_ROOT/scripts/gh-api-read.sh <endpoint> [gh api flags...]
+$WORKSPACE_ROOT/scripts/gh-api-read.sh repos/OWNER/REPO/contents/path/to/file --decode-content
+```
+**CRITICAL: Quote the endpoint whenever it contains `?`** (e.g. `?ref=<branch>`). Unquoted `?` is a zsh glob wildcard → `no matches found` error:
+```
+# WRONG:
+gh-api-read.sh repos/OWNER/REPO/contents/file.tf?ref=my-branch --decode-content
+# RIGHT:
+gh-api-read.sh "repos/OWNER/REPO/contents/file.tf?ref=my-branch" --decode-content
+```
+
 ## Node.js / Yarn
 
 **For repos using Yarn via corepack** (check for `"packageManager"` in `package.json`): use the **`yarn-cwd.sh` wrapper script**:
@@ -145,6 +160,41 @@ Do NOT use bare `yarn --cwd <path>` for corepack repos — corepack resolves the
 **For repos using Yarn v1 without corepack:** use `yarn --cwd <path>` directly.
 
 Never add `2>&1` or any redirect.
+
+## Dependabot PR work
+
+When your Beads task is a dependabot fix (`CI-fix: dependabot ...`), the workflow differs from a normal feature task:
+
+- **Do NOT create a new branch.** The dependabot branch already exists — the Beads description includes the branch name and worktree path.
+- **Do NOT open a new PR.** Push your changes to the existing dependabot branch. The open PR updates automatically.
+- `git push --force-with-lease origin <dependabot-branch>` is acceptable if a rebase is needed.
+
+### Test policy
+
+| Scenario | What to do |
+|----------|-----------|
+| Repo **has** a test suite | Run existing tests. If pass → done. If fail → fix and/or add regression test. |
+| Repo **has no** test suite (npm only) | Add vitest, write one smoke test per bumped package, run tests. |
+| Terraform bump | `terraform validate` + `terraform plan` (dry-run) + checkov + tflint. If all pass → push unchanged. |
+| GitHub Actions bump | Just check CI. No code changes unless CI fails. |
+
+### Adding vitest to a repo with no test suite
+
+1. Add vitest: `$WORKSPACE_ROOT/scripts/yarn-cwd.sh <worktree-path> add -D vitest`
+2. Add to `package.json` scripts: `"test": "vitest run"`
+3. Write `src/<package>.test.ts`:
+   ```typescript
+   import { describe, it, expect } from 'vitest'
+   import <something> from '<bumped-package>'
+
+   describe('<bumped-package>', () => {
+     it('loads without error', () => {
+       expect(<something>).toBeDefined()
+     })
+   })
+   ```
+4. Run: `$WORKSPACE_ROOT/scripts/yarn-cwd.sh <worktree-path> test` — must pass.
+5. Push: `git -C <worktree-path> push origin <dependabot-branch>`
 
 ## Workflow
 
@@ -218,15 +268,19 @@ Do NOT enter a monitoring loop. Do NOT run sleep.
 
 ## Beads failures — escalate, do not fix
 
-**`bd` error handling — two distinct cases:**
+**`bd` error handling — three distinct cases:**
 
-**Case 1 — Lock contention** (error contains "failed to acquire dolt access lock" or "lock busy"):
+**Case 1 — Connection error** ("connection refused", "dial tcp", "no such host"): the dolt SQL server is not running.
+- Write to `metadata/messages/human/<YYYYMMDD-HHMMSS>-author-<N>-bd-error.md` and stop — do NOT attempt to start the server yourself.
+- Do not retry; this is not transient.
+
+**Case 2 — Lock contention** (error contains "failed to acquire dolt access lock" or "lock busy"):
 - This is transient. Another agent is briefly holding the database lock.
 - Wait 30 seconds, then retry the same command. Retry up to 3 times.
 - If all 3 retries fail, write the error to `metadata/messages/human/<YYYYMMDD-HHMMSS>-author-<N>-bd-error.md` and stop.
 - Do NOT delete lock files yourself. Do NOT run `bd doctor`.
 
-**Case 2 — Real crash** (nil pointer panic, "tables changed", segfault, or any exit code 2 that is NOT a lock error):
+**Case 3 — Real crash** (nil pointer panic, "tables changed", segfault, or any exit code 2 that is NOT a lock or connection error):
 - **STOP. Do not attempt to fix it yourself.**
 - Note what you were doing and which `bd` command failed.
 - Write the error to `metadata/messages/human/<YYYYMMDD-HHMMSS>-author-<N>-bd-error.md` and wait.

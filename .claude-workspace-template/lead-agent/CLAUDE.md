@@ -50,7 +50,8 @@ Authors pull work from the Beads queue. Your most important job is ensuring the 
 - **Do not block publishing on cleanup.** Stale worktrees, old metadata entries, and registry mismatches can be fixed after tasks are in the queue.
 - **Do not over-investigate before publishing.** Read just enough to write a complete task description. Authors work from the Beads description alone — it must be self-contained.
 - **Publish all ready tasks in one pass.** Don't publish one and then investigate before publishing the next.
-- **CI fix interrupts are the exception.** For CI failures on a specific PR, send a direct interrupt to the Author who opened it (they have context), pointing them to the new Beads issue.
+- **CI fix interrupts are the exception.** For CI failures on a specific PR, send a direct interrupt to the Author who opened it (they have context), pointing them to the new Beads issue. This is the only case where you write to an author inbox.
+- **Never double-assign.** Before sending a direct inbox message to assign work, run `bd list --all` and scan for any open/in-progress Beads task targeting the same repo/branch. If one exists, do NOT send a direct assignment — the Author will pull the Beads task from the queue. Sending the same work through both channels causes duplicate PRs.
 
 ## Workspace
 
@@ -61,11 +62,22 @@ Authors pull work from the Beads queue. Your most important job is ensuring the 
 - Beads coordination: `$WORKSPACE_ROOT/beads-central/`
 - Scripts: `$WORKSPACE_ROOT/scripts/`
 
-You may create and edit all files in **metadata/** as part of orchestration (task-board.md, agent-assignments.md, dependency-graph.json, worktree-registry.json, open-prs.json).
-
 **Read access:** DO NOT ask for permission before reading any file or directory under `$WORKSPACE_ROOT`. Just read it. All reads anywhere in this workspace are pre-approved — `repos/`, `worktrees/`, `metadata/`, `scripts/`, `beads-central/`, root files, everything. Reading is never a permission issue; proceed immediately.
 
 **Read-only repos:** Check the Project Configuration block above. Do NOT create worktrees, branches, or PRs for read-only repos. Do NOT assign Authors tasks that involve writing to them.
+
+## File ownership
+
+| File | Lead role | Notes |
+|------|-----------|-------|
+| `metadata/open-prs.json` | **Owner** | Auto-synced by `sync-pr-state.sh`. Single source of truth for PR state. |
+| `metadata/agent-assignments.md` | **Owner** | Beads queue, worktree state, PR tracking. |
+| `metadata/lead-status.md` | **Owner** | Your session output. Write a summary here at the end of each orchestration cycle. |
+| `metadata/task-board.md` | **Read-only** | Owned by Command Center. Epic specs, planning. Do NOT write to it. |
+| `metadata/messages/lead/` | **Inbox** | Read + delete via `clear-inbox.sh`. |
+| `metadata/messages/human/` | **Outbox** | Deposit human action items here. |
+
+You may also create/edit: `metadata/worktree-registry.json`, `metadata/dependency-graph.json`.
 
 ## Responsibilities
 
@@ -80,6 +92,7 @@ You may create and edit all files in **metadata/** as part of orchestration (tas
 You are responsible for monitoring CI on open PRs. Authors move on to new tasks after opening a PR — they do not wait for CI. You must catch failures and route fixes back to an available Author.
 
 **When to check CI:**
+- After assigning an Author to a new task (check PRs from their previous task)
 - After processing Author completion messages
 - At the start of each orchestration cycle
 - When the human asks
@@ -103,15 +116,19 @@ gh run list --repo <owner>/<repo>
 
 `BEADS_DIR` is pre-set in your environment to `$WORKSPACE_ROOT/beads-central/.beads`. All `bd` commands use `beads-central` automatically — do not set `BEADS_DIR` manually. **NEVER run `bd init`** — if you see a "no beads database found" error, stop and report it to the human.
 
-**`bd` error handling — two distinct cases:**
+**`bd` error handling — three distinct cases:**
 
-**Case 1 — Lock contention** (error contains "failed to acquire dolt access lock" or "lock busy"):
+**Case 1 — Connection error** ("connection refused", "dial tcp", "no such host"): the dolt SQL server is not running.
+- Write to `metadata/messages/human/` and stop — do NOT attempt to start the server yourself.
+- Do not retry; this is not transient.
+
+**Case 2 — Lock contention** (error contains "failed to acquire dolt access lock" or "lock busy"):
 - This is transient. Another agent is briefly holding the database lock.
 - Wait 30 seconds, then retry the same command. Retry up to 3 times.
 - If all 3 retries fail, write the error to `metadata/messages/human/` (timestamped file) and stop.
 - Do NOT delete lock files yourself. Do NOT run `bd doctor`.
 
-**Case 2 — Real crash** (nil pointer panic, "tables changed", segfault, or any exit code 2 that is NOT a lock error):
+**Case 3 — Real crash** (nil pointer panic, "tables changed", segfault, or any exit code 2 that is NOT a lock or connection error):
 - **STOP. Do not attempt to fix it yourself.**
 - Note what you were doing and which `bd` command failed.
 - Write the error to `metadata/messages/human/` (timestamped file) and wait.
@@ -134,6 +151,8 @@ Every task MUST have a Beads issue. Authors pull from the queue using `bd ready`
 The issue becomes visible to Authors via `bd ready` as soon as it is created. Do not send inbox messages for normal task publishing.
 
 **CI fix interrupts are the exception:** Write a file to `metadata/messages/author-<N>/` pointing the Author to the Beads issue.
+
+**DEDUPLICATION GUARD (mandatory before any direct assignment):** Before sending a direct inbox message to assign work to an Author, run `bd list --all` and scan for any open/in-progress Beads task targeting the same repo and worktree/branch. If one exists, do NOT send a direct assignment — the Author will pull the Beads task from the queue naturally. Sending the same work through both a Beads task AND a direct inbox message causes two Authors to do identical work and open duplicate PRs. The only safe direct assignments are CI fix interrupts (where the Beads issue was just created and you are pointing the specific Author who opened the PR to their own fix).
 
 ### Beads task description format
 
@@ -158,6 +177,89 @@ Ticket: <ID or 'none'>
 
 **Authors have no access to the ticket system.** Any ticket context they need must be written into this description before you publish the task.
 
+## Dependabot PR monitoring
+
+Dependabot opens version-bump PRs automatically. Check for them every cycle as part of CI monitoring.
+
+### Detection
+
+Poll all R/W repos (listed in your Project Configuration) for open dependabot PRs:
+```
+gh pr list --repo <owner>/<repo> --author app/dependabot --state open --json number,title,headRefName,createdAt
+```
+
+Cross-reference against `metadata/open-prs.json` to find NEW (untracked) dependabot PRs. PRs already in the JSON with `"author": "dependabot"` have already been processed — skip them.
+
+### Classification
+
+Classify each new dependabot PR by title prefix:
+- `deps(actions)` → GitHub Actions bump
+- `deps(terraform)` → Terraform provider/module bump
+- `deps(npm)` or bare package names → npm/Node.js bump
+
+### Tier routing
+
+**Tier 1 — CI green, no code changes needed → add to human merge list:**
+- GitHub Actions SHA/version bumps where CI passes
+- Terraform provider/module bumps where plan + checkov + tflint all pass
+- npm bumps where existing tests pass unchanged
+
+**Tier 2 — Agent code changes required → Author fixes → Reviewer → human merge list:**
+- npm bumps in repos with NO test suite (Author adds smoke tests)
+- npm bumps where existing tests fail (Author fixes + adds regression test)
+- Any bump where CI fails for a non-trivial reason
+
+### Tier 1 handling
+
+1. Check CI: `gh pr checks <number> --repo <owner>/<repo>`
+2. If all checks pass (or only pending):
+   - Add to `metadata/open-prs.json` with `"author": "dependabot", "tier": 1`
+   - Add to task-board "Human merge list" section
+   - No Beads task, no Author work
+
+### Tier 2 handling
+
+1. Create a worktree on the dependabot branch:
+   ```
+   ~/projects/[[PROJECT_NAME]]/scripts/create-feature-worktrees.sh <feature> --repo <owner>/<repo> --branch <dependabot-branch>
+   ```
+2. Create a Beads task with title: `CI-fix: dependabot <repo>#<PR> — <package>` and description:
+   ```
+   Worktree: ~/projects/[[PROJECT_NAME]]/worktrees/<feature>/<repo>/
+   Branch: <dependabot-branch-name>  ← check out this EXISTING branch, do NOT create a new one
+   Repo: <owner>/<repo>
+   PR: #<number> (<url>)
+   Ticket: none
+
+   ## What to do
+   This is a dependabot version bump PR. Your job is to make CI green.
+   Package bumped: <package> <old-version> → <new-version>
+
+   <If repo HAS a test suite:>
+   1. Run existing tests.
+   2. If tests fail: fix compatibility issues and/or add a regression test.
+   3. Push to the dependabot branch: git -C <worktree-path> push origin <dependabot-branch>
+
+   <If repo has NO test suite (npm/Node.js only):>
+   1. Add vitest: ~/projects/[[PROJECT_NAME]]/scripts/yarn-cwd.sh <worktree-path> add -D vitest
+   2. Add "test": "vitest run" to package.json scripts.
+   3. Write src/<package>.test.ts with at least one smoke test.
+   4. Run tests — must pass.
+   5. Push to the dependabot branch.
+
+   <Terraform bump:>
+   1. Run: terraform validate + terraform plan (dry-run only) + checkov + tflint
+   2. If all pass → push unchanged (CI re-runs against the updated provider).
+
+   ## Reminders
+   - Push to the EXISTING dependabot branch. Do NOT create a new branch or PR.
+   - The existing PR updates automatically when you push.
+   - force-with-lease is OK if needed: git -C <worktree-path> push --force-with-lease origin <dependabot-branch>
+   ```
+3. Add to `metadata/open-prs.json` with `"author": "dependabot", "tier": 2`
+4. After Author completes: send review request to Reviewer (same format as normal PRs)
+5. After Reviewer approves: add to task-board "Human merge list" section
+
 ## Git and GitHub CLI (gh) — orchestrate only
 
 - **git:** In **repos/ and worktrees/**: read-only — `status`, `log`, `diff`, `branch`, `show`, `fetch`. Use `git -C <path>` for all git commands. You may run `worktree add`, `worktree list`, `worktree remove`, or use `~/projects/[[PROJECT_NAME]]/scripts/create-feature-worktrees.sh`. Do not add/commit/push in repos or worktrees — Authors do the code and commits. In **beads-central/** only: you may `add`, `commit`, `push` to persist Beads state.
@@ -170,7 +272,7 @@ Ticket: <ID or 'none'>
 ```
 Add `--remove-branches` to also delete the local feature branches. Do NOT add `2>&1` — redirects trigger permission prompts.
 
-- **gh:** Read-only only — `pr view`, `pr list`, `pr status`, `pr checks`, `repo view`, `run list`, `workflow view`, etc. Do not create PRs or run workflows; Authors do that. NEVER create GitHub issues (`gh issue create`). **Always use `--repo` at the end of the command.**
+- **gh:** Read-only only — `pr view`, `pr list`, `pr status`, `pr checks`, `repo view`, `run list`, `workflow view`, etc. Do not create PRs or run workflows; Authors do that. NEVER create GitHub issues (`gh issue create`). **Always use `--repo` at the end of the command, NOT `-R` before the subcommand.** Example: `gh pr checks 15 --repo owner/repo` (correct). NOT: `gh -R owner/repo pr checks 15` (triggers permission prompt because `-R` breaks the pattern match).
 
 ## Global knowledge
 
@@ -216,6 +318,14 @@ Examples:
 ~/projects/[[PROJECT_NAME]]/scripts/gh-api-read.sh repos/OWNER/REPO/contents/.github/workflows --jq '.[].name'
 ~/projects/[[PROJECT_NAME]]/scripts/gh-api-read.sh repos/OWNER/REPO/contents/.github/workflows/build.yml --decode-content
 ~/projects/[[PROJECT_NAME]]/scripts/gh-api-read.sh repos/OWNER/REPO/actions/runs --jq '.workflow_runs[0].status'
+```
+
+**CRITICAL: Quote the endpoint whenever it contains `?`** (e.g. `?ref=<branch>`). Unquoted `?` is a zsh glob wildcard and causes `no matches found` errors:
+```
+# WRONG:
+gh-api-read.sh repos/OWNER/REPO/contents/file.tf?ref=my-branch --decode-content
+# RIGHT:
+gh-api-read.sh "repos/OWNER/REPO/contents/file.tf?ref=my-branch" --decode-content
 ```
 
 ## Inter-agent messaging (MANDATORY)
@@ -282,11 +392,12 @@ When you receive Reviewer findings:
 
 Each session, execute these steps in order, then remain available for follow-up from the human:
 
+0. **Sync PR state** *(always first)*: Run `~/projects/[[PROJECT_NAME]]/scripts/sync-pr-state.sh` and read its output. This moves merged/closed PRs out of `open_prs` and updates `open-prs.json` in place. Note any newly-merged PRs and continue.
 1. **Check inbox**: Use the **Glob** tool to list all files in `metadata/messages/lead/`. Note each filename. Read and process each file — Author completions, Reviewer findings, blockers. After processing, delete only the files you read (TOCTOU-safe): `~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh <file1> [file2] ...` Do NOT use `rm` directly.
-2. **Check CI**: For each open PR in `metadata/open-prs.json`, run `gh pr checks`. For failures, create a `CI-fix:` Beads issue and send an inbox interrupt to the Author who opened the PR.
+2. **Check CI**: For each open PR in `metadata/open-prs.json` with status `ci_failing` or `ci_unknown`, run `gh pr checks <number> --repo <owner>/<repo>`. For failures, create a `CI-fix:` Beads issue and send an inbox interrupt to the Author who opened the PR. Skip PRs already marked `ci_green` unless Step 0 flagged a change.
 3. **Stock the queue**: Review `metadata/task-board.md`. For each task that is ready (dependencies met), create a worktree if needed, publish via `~/projects/[[PROJECT_NAME]]/scripts/beads-publish.sh`, and update `metadata/agent-assignments.md`. Publish all ready tasks in one pass.
 4. **Send review requests**: For completed PRs without a review, write to `metadata/messages/reviewer/`.
-5. **Report**: Output a summary of actions taken and wait for further instructions from the human.
+5. **Write lead-status.md + report**: Update `metadata/lead-status.md` with current state (merge queue, beads queue, human actions, agent assignments). Then output a brief session summary and wait for further instructions from the human.
 
 Sessions are fully interactive — do NOT exit after completing the initial checklist. The human may ask follow-up questions, override decisions, or direct additional work within the same session.
 
