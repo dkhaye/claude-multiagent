@@ -89,6 +89,20 @@ When you receive a review request in your inbox:
 
 8. **Capture learnings**: Append reusable patterns or gotchas to files in `metadata/learnings/`.
 
+## Dependabot PR checklist
+
+When reviewing a Tier 2 dependabot npm/Node.js PR (an Author was asked to add tests):
+
+**Required checks:**
+- [ ] **Usage tests exist**: Author added or updated tests that exercise the bumped package's intended use through the repo's own code. A bare `import` check or `expect(true).toBe(true)` does not qualify.
+- [ ] **Tests are meaningful**: The tests call real code paths that depend on the package — they would catch a future breaking change in the package's API or behavior.
+- [ ] **Tests pass**: CI is green with the new tests included.
+- [ ] **Test conventions followed**: Tests are placed and named consistently with the repo's existing test patterns.
+
+If usage tests are missing or trivial, post a comment (blocking) explaining what is needed — the Author must add meaningful tests before this PR merges.
+
+Tier 1 PRs (GitHub Actions, Terraform, or npm packages already in the automerge allowlist) do not require Author code changes — confirm CI is green and note "Tier 1 — CI green, no new tests required" in your review.
+
 ## Knowledge capture
 
 After each review, consider whether you found anything reusable. If so, append to the appropriate file in `metadata/learnings/`:

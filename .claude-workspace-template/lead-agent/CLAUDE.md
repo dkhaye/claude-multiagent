@@ -209,17 +209,24 @@ Classify each new dependabot PR by title prefix:
 - `deps(terraform)` → Terraform provider/module bump
 - `deps(npm)` or bare package names → npm/Node.js bump
 
+For npm bumps, also check the automerge allowlist to determine the tier:
+- Check `.github/workflows/dependabot-automerge.yml` (or the repo's equivalent automerge config) to see if the package is already listed.
+- If listed → Tier 1 (previously validated; just confirm CI).
+- If NOT listed → Tier 2 (add usage tests first).
+
 ### Tier routing
 
-**Tier 1 — CI green, no code changes needed → add to human merge list:**
+**Tier 1 — CI green, package already verified → add to human merge list:**
 - GitHub Actions SHA/version bumps where CI passes
 - Terraform provider/module bumps where plan + checkov + tflint all pass
-- npm bumps where existing tests pass unchanged
+- npm bumps for packages **already in the repo's automerge allowlist** — previously validated; CI passing is sufficient
 
-**Tier 2 — Agent code changes required → Author fixes → Reviewer → human merge list:**
-- npm bumps in repos with NO test suite (Author adds smoke tests)
+**Tier 2 — Author adds usage tests → Reviewer confirms → human merge list:**
+- All npm/Node.js bumps for packages **not yet in the automerge allowlist** — regardless of CI status
 - npm bumps where existing tests fail (Author fixes + adds regression test)
-- Any bump where CI fails for a non-trivial reason
+- Any npm bump where CI fails for a non-trivial reason
+
+**Tier 2 is the default for new npm packages.** The goal: Author writes tests proving the upgrade is safe, then adds the package to the automerge allowlist so future bumps auto-merge as Tier 1.
 
 ### Tier 1 handling
 
@@ -231,11 +238,15 @@ Classify each new dependabot PR by title prefix:
 
 ### Tier 2 handling
 
+For npm/Node.js packages not yet in the automerge allowlist, the workflow has two steps: (1) verify the upgrade with tests, (2) add the package to the allowlist after the upgrade merges.
+
+**Step 1 — Tests on the dependabot branch:**
+
 1. Create a worktree on the dependabot branch:
    ```
    ~/projects/[[PROJECT_NAME]]/scripts/create-feature-worktrees.sh <feature> --repo <owner>/<repo> --branch <dependabot-branch>
    ```
-2. Create a Beads task with title: `CI-fix: dependabot <repo>#<PR> — <package>` and description:
+2. Create a Beads task with title: `dependabot-test: <repo>#<PR> — <package>` and description:
    ```
    Worktree: ~/projects/[[PROJECT_NAME]]/worktrees/<feature>/<repo>/
    Branch: <dependabot-branch-name>  ← check out this EXISTING branch, do NOT create a new one
@@ -244,37 +255,38 @@ Classify each new dependabot PR by title prefix:
    Ticket: none
 
    ## What to do
-   This is a dependabot version bump PR. Your job is to make CI green.
+   This is a dependabot version bump PR. Your job is to add tests verifying the upgrade is safe,
+   then push to the dependabot branch so the existing PR includes the tests.
    Package bumped: <package> <old-version> → <new-version>
 
-   <If repo HAS a test suite:>
-   1. Run existing tests.
-   2. If tests fail: fix compatibility issues and/or add a regression test.
-   3. Push to the dependabot branch: git -C <worktree-path> push origin <dependabot-branch>
-
-   <If repo has NO test suite (npm/Node.js only):>
-   1. Add vitest: ~/projects/[[PROJECT_NAME]]/scripts/yarn-cwd.sh <worktree-path> add -D vitest
-   2. Add "test": "vitest run" to package.json scripts.
-   3. Write src/<package>.test.ts with at least one smoke test.
-   4. Run tests — must pass.
-   5. Push to the dependabot branch.
+   1. Run existing tests to check the baseline. Use the repo's test command (check package.json scripts).
+   2. If tests fail due to the upgrade: fix the compatibility issue.
+   3. Write unit/integration tests that verify the upgraded package works correctly in this repo:
+      - Import the package and exercise the key APIs this repo uses.
+      - At minimum: one test confirming the package loads and a critical function works as expected.
+      - If the repo has NO test suite yet: add vitest (check package.json to determine the package
+        manager, then `npm install -D vitest` or equivalent), add `"test": "vitest run"` to
+        package.json scripts, and write a test file in the appropriate location.
+   4. Run all tests — must pass.
+   5. Push to the dependabot branch: `git -C <worktree-path> push origin <dependabot-branch>`
+      (force-with-lease is OK: `git -C <worktree-path> push --force-with-lease origin <dependabot-branch>`)
 
    <Terraform bump:>
    1. Run: terraform validate + terraform plan (dry-run only) + checkov + tflint
    2. If all pass → push unchanged (CI re-runs against the updated provider).
 
    ## Reminders
-   - Push to the EXISTING dependabot branch. Do NOT create a new branch or PR.
+   - Push to the EXISTING dependabot branch. Do NOT create a new branch or separate PR.
    - The existing PR updates automatically when you push.
-   - force-with-lease is OK if needed: git -C <worktree-path> push --force-with-lease origin <dependabot-branch>
+   - Do NOT update the automerge config in this task — that happens in a separate PR after this merges.
    ```
 3. Add to `metadata/open-prs.json` with `"author": "dependabot", "tier": 2`
-4. After Author completes: send review request to Reviewer (same format as normal PRs)
-5. After Reviewer approves: add to task-board "Human merge list" section
+4. After Author pushes tests: send review request to Reviewer. The Reviewer confirms tests are adequate.
+5. After Reviewer LGTM: write to human inbox that the PR is ready to merge (tests included).
 
-### Dependabot automerge allowlist (after a Tier 2 PR merges)
+**Step 2 — Add package to automerge allowlist (separate PR, after upgrade merges):**
 
-After a Tier 2 dependabot PR is merged and tests passed without workarounds, create a follow-up Beads task to add the package to the repo's automerge allowlist so future bumps auto-merge as Tier 1:
+After the dependabot PR is merged by the human, create a task to add the package to the automerge allowlist:
 
 1. Create a worktree off the default branch:
    ```
@@ -297,6 +309,7 @@ After a Tier 2 dependabot PR is merged and tests passed without workarounds, cre
    ## Reminders
    - Only add the package if PR #<number> passed without requiring workarounds for breaking changes.
    ```
+3. After Author opens PR: send review request to Reviewer. Normal review + merge flow.
 
 ## Git and GitHub CLI (gh) — orchestrate only
 
