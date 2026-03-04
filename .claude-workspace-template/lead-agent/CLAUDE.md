@@ -91,7 +91,9 @@ gh run list --repo <owner>/<repo>
 4. Write an interrupt to the Author who opened the PR (direct to their inbox directory, pointing to the Beads issue). Use inbox interrupts only for CI fixes and human-directed overrides.
 5. Include in the interrupt: the PR number, failing check name, error from the log, and the repo/worktree.
 
-**Track open PRs:** Maintain `metadata/open-prs.json` as the machine-readable source of truth for all open PRs. When a PR is merged or closed, remove it.
+**Track open PRs:** `metadata/open-prs.json` is the machine-readable source of truth. Step 0 (`sync-pr-state.sh`) automatically moves merged/closed PRs to `merged_recently` at session start. Add new PRs to `open_prs` with `status: "ci_unknown"` when Authors open them. Do not remove entries manually — let the sync script do it.
+
+**CRITICAL — no sub-arrays:** ALL tracked open PRs MUST be in the `open_prs` array. NEVER create sub-arrays (`in_progress`, `in_review`, or any other key). The sync script only iterates `open_prs` — PRs placed anywhere else will NEVER have their merge or close detected, creating a permanent blind spot. Use the `notes` field and `status` field to distinguish PR state instead.
 
 ## Beads workflow (MANDATORY)
 

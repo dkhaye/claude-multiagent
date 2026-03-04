@@ -50,7 +50,12 @@ if ! jq empty "$PRS_FILE" 2>/dev/null; then
 fi
 ok "JSON is valid"
 
-# 2. Required top-level keys
+# 2. Undocumented tracking arrays — sync-pr-state.sh only reads open_prs
+if jq -e 'has("in_progress")' "$PRS_FILE" >/dev/null 2>&1; then
+  warn "'in_progress' key found — PRs here are invisible to sync-pr-state.sh and will NOT have merges detected. Run sync-pr-state.sh to auto-migrate them to open_prs."
+fi
+
+# 3. Required top-level keys
 for key in schema_version open_prs merged_recently; do
   if ! jq -e "has(\"$key\")" "$PRS_FILE" >/dev/null 2>&1; then
     err "Missing top-level key: $key"
@@ -58,7 +63,7 @@ for key in schema_version open_prs merged_recently; do
 done
 [[ "$ERRORS" -eq 0 ]] && ok "Top-level keys present"
 
-# 3. schema_version value
+# 4. schema_version value
 schema_ver=$(jq -r '.schema_version // "missing"' "$PRS_FILE")
 if [[ "$schema_ver" != "2" ]]; then
   err "schema_version is '$schema_ver', expected 2. Run migrate-open-prs-v1-to-v2.sh."
@@ -66,7 +71,7 @@ else
   ok "schema_version = 2"
 fi
 
-# 4. Required fields per open_pr entry
+# 5. Required fields per open_pr entry
 open_count=$(jq '.open_prs | length' "$PRS_FILE")
 entry_errors=0
 for i in $(seq 0 $((open_count - 1))); do
@@ -80,7 +85,7 @@ for i in $(seq 0 $((open_count - 1))); do
 done
 [[ "$entry_errors" -eq 0 ]] && ok "All $open_count open PR entries have required fields"
 
-# 5. merged_recently retention warning
+# 6. merged_recently retention warning
 merged_count=$(jq '.merged_recently | length' "$PRS_FILE")
 RETENTION_LIMIT=50
 if [[ "$merged_count" -gt "$RETENTION_LIMIT" ]]; then

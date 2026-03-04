@@ -39,6 +39,29 @@ APPROVALS_TMP=$(mktemp)   # repo|number|true|false        (--approvals only)
 trap 'rm -f "$MERGED_TMP" "$CLOSED_TMP" "$CI_TMP" "$APPROVALS_TMP"' EXIT
 
 TODAY=$(date -u +%Y-%m-%d)
+
+# ── auto-migrate undocumented in_progress array ───────────────────────────────
+# If the Lead hallucinated an in_progress sub-array, migrate entries into
+# open_prs so they are visible to the sync loop.  Prints a warning so the
+# Lead knows to stop creating sub-arrays.
+in_progress_count=$(jq '(.in_progress // []) | length' "$PR_FILE")
+if [[ "$in_progress_count" -gt 0 ]]; then
+    printf 'WARNING: Found "in_progress" array (%d entries) — migrating to open_prs.\n' \
+        "$in_progress_count"
+    printf 'All tracked open PRs must be in open_prs. Do not create sub-arrays.\n'
+    jq '
+      .open_prs = (
+        .open_prs +
+        (.in_progress | map(
+            . + (if has("status")         then {} else {"status": "ci_unknown"}  end)
+              + (if has("human_approved") then {} else {"human_approved": false} end)
+        ))
+      ) |
+      del(.in_progress)
+    ' "$PR_FILE" > "${PR_FILE}.new"
+    mv "${PR_FILE}.new" "$PR_FILE"
+fi
+
 open_count=$(jq '.open_prs | length' "$PR_FILE")
 printf 'sync-pr-state: checking %d open PRs...\n' "$open_count"
 
@@ -178,8 +201,13 @@ jq \
     $pr + {"notes": ($pr.notes + " MERGED \($d).")}
   ))                                                 as $newly_merged |
 
+  # Stamp CLOSED date onto notes for closed-without-merge entries
+  ($to_close | map(
+    . + {"notes": ((.notes // "") + " CLOSED (not merged) \($today).")}
+  ))                                                 as $newly_closed |
+
   .open_prs      = $still_open |
-  .merged_recently = (($newly_merged + (.merged_recently // [])) | .[-50:])
+  .merged_recently = (($newly_merged + $newly_closed + (.merged_recently // [])) | .[-50:])
 
 ' "$PR_FILE" > "${PR_FILE}.new"
 
