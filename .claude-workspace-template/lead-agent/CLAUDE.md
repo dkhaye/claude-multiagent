@@ -145,7 +145,7 @@ Every task MUST have a Beads issue. Authors pull from the queue using `bd ready`
    ```
    ~/projects/[[PROJECT_NAME]]/scripts/beads-publish.sh "<task title>" metadata/tmp/beads/<YYYYMMDD-HHMMSS>.md
    ```
-   The script creates the Beads issue, updates it with the description, deletes the temp file, and echoes the issue ID.
+   The script creates the Beads issue atomically with the description (single `bd create --body-file` call), deletes the temp file, and echoes the issue ID.
 3. Update `metadata/agent-assignments.md` with the Beads ID and worktree path.
 
 The issue becomes visible to Authors via `bd ready` as soon as it is created. Do not send inbox messages for normal task publishing.

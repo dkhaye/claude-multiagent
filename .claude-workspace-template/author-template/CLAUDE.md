@@ -283,6 +283,7 @@ When a task is complete, do the following — then immediately look for more wor
    ```
    bd close <id>
    ```
+   **CRITICAL: Always provide the explicit `<id>`. NEVER run `bd close` without an ID** — without an ID it closes the "last touched" issue, which may be someone else's task.
 
 2. **Send a completion message to the Lead**. Write a file to `metadata/messages/lead/<YYYYMMDD-HHMMSS>-author-<N>-complete.md`:
    ```
