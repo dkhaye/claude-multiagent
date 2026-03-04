@@ -17,8 +17,22 @@ SESSION="[[PROJECT_NAME]]"
 LOOP="$WORKSPACE_ROOT/scripts/agent-loop.sh"
 
 if tmux has-session -t "$SESSION" 2>/dev/null; then
-  echo "Session '$SESSION' already exists. Attach with: tmux attach -t $SESSION"
-  exit 0
+  echo "Session '$SESSION' already exists."
+  printf "Kill and recreate? [y/N] "
+  read -r ans
+  case "$ans" in
+    [yY]*)
+      tmux kill-session -t "$SESSION"
+      ;;
+    *)
+      echo "Attaching to existing session."
+      if [[ -n "${TMUX:-}" ]]; then
+        exec tmux switch-client -t "$SESSION"
+      else
+        exec tmux attach-session -t "$SESSION"
+      fi
+      ;;
+  esac
 fi
 
 # ── Workspace isolation check ─────────────────────────────────────────────────
