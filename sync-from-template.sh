@@ -95,6 +95,7 @@ SCRIPTS=(
   ci-status.sh
   cleanup-worktrees.sh
   clear-inbox.sh
+  complete-task.sh
   create-feature-worktrees.sh
   # env.sh intentionally excluded: it contains project-specific config
   # (WORKSPACE_ROOT, NUM_AUTHORS, env sentinel variable) set at project
@@ -102,15 +103,23 @@ SCRIPTS=(
   gh-api-read.sh
   global-status.sh
   human-inbox.sh
+  migrate-open-prs-v1-to-v2.sh
+  node-exec.sh
   post-to-slack.sh
+  pr-changed-since-review.sh
   pr-close.sh
   pr-create.sh
   prompts/author.txt
   prompts/lead.txt
   prompts/reviewer.txt
+  prune-message-archive.sh
+  session-report-draft.sh
+  sweep-stale-worktrees.sh
   sync-pr-state.sh
   tmp-clean.sh
+  validate-open-prs.sh
   validate-path.sh
+  verify-repo-facts.sh
   yarn-cwd.sh
 )
 
@@ -305,7 +314,22 @@ done
 
 log ""
 
-# ── 6. Workspace isolation check ────────────────────────────────────────────────
+# ── 6. Template revision tracking ──────────────────────────────────────────────
+log "## Template revision"
+log ""
+
+TEMPLATE_SHA="$(git -C "$TEMPLATE_ROOT" rev-parse HEAD 2>/dev/null || echo "unknown")"
+TEMPLATE_BRANCH="$(git -C "$TEMPLATE_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")"
+REVISION_FILE="$PROJECT_PATH/metadata/last-template-sync.md"
+
+printf '# Last template sync\nTimestamp: %s\nTemplate SHA: %s\nTemplate branch: %s\nProject: %s\n' \
+  "$TIMESTAMP" "$TEMPLATE_SHA" "$TEMPLATE_BRANCH" "$PROJECT_PATH" > "$REVISION_FILE"
+
+log "- Template SHA: \`$TEMPLATE_SHA\` (branch: $TEMPLATE_BRANCH)"
+log "- Written to: \`metadata/last-template-sync.md\`"
+log ""
+
+# ── 7. Workspace isolation check ────────────────────────────────────────────────
 log "## Isolation check"
 log ""
 

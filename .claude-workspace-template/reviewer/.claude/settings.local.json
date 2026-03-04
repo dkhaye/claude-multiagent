@@ -46,7 +46,11 @@
       "Bash(~/projects/[[PROJECT_NAME]]/scripts/gh-api-read.sh *)",
       "Bash([[PROJECT_ROOT]]/scripts/gh-api-read.sh *)",
       "Bash(~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh *)",
-      "Bash([[PROJECT_ROOT]]/scripts/clear-inbox.sh *)"
+      "Bash([[PROJECT_ROOT]]/scripts/clear-inbox.sh *)",
+      "Bash(~/projects/[[PROJECT_NAME]]/scripts/pr-changed-since-review.sh *)",
+      "Bash([[PROJECT_ROOT]]/scripts/pr-changed-since-review.sh *)",
+      "Bash(~/projects/[[PROJECT_NAME]]/scripts/verify-repo-facts.sh *)",
+      "Bash([[PROJECT_ROOT]]/scripts/verify-repo-facts.sh *)"
     ]
   }
 }

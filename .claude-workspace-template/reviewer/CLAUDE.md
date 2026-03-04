@@ -52,11 +52,13 @@ Do not write anywhere else.
 
 When you receive a review request in your inbox:
 
-1. **Check for new changes first**: Before doing any review work, run:
+1. **Check for new changes first**: Run:
    ```
-   gh pr view <number> --repo <owner>/<repo> --json reviews,commits
+   $WORKSPACE_ROOT/scripts/pr-changed-since-review.sh <number> <owner>/<repo>
    ```
-   Read the JSON. If `reviews` is non-empty and every commit's `committedDate` is **older** than the most recent review's `submittedAt`, the PR has not changed since last reviewed — skip it. Write a file to `metadata/messages/lead/<YYYYMMDD-HHMMSS>-reviewer-<repo>-<pr>.md`: "PR <repo>#<number> skipped — no new commits since last review." Do not post a redundant review on GitHub.
+   - **`CHANGED <sha>`** — new commits since last review; proceed with full review.
+   - **`NO_REVIEW`** — no reviews yet; proceed with full review.
+   - **`UNCHANGED (...)`** — no new commits since last review; skip. Write a file to `metadata/messages/lead/<YYYYMMDD-HHMMSS>-reviewer-<repo>-<pr>.md`: "PR <repo>#<number> skipped — no new commits since last review." Do not post a redundant review on GitHub.
 
 2. **Read the PR diff**: `gh pr diff <number> --repo <owner>/<repo>`
 3. **Read source files** from `$WORKSPACE_ROOT/repos/` for context around the changed code.
