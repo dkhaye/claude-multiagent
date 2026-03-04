@@ -40,14 +40,14 @@ fi
 
 # Look up the PR entry before removing (for the inbox message)
 TITLE=$(jq -r --arg repo "$REPO" --argjson num "$NUMBER" \
-  '.prs[] | select(.repo == $repo and .number == $num) | .title' "$PRS_FILE")
+  '.open_prs[] | select(.repo == $repo and .number == $num) | .title' "$PRS_FILE")
 URL=$(jq -r --arg repo "$REPO" --argjson num "$NUMBER" \
-  '.prs[] | select(.repo == $repo and .number == $num) | .url' "$PRS_FILE")
+  '.open_prs[] | select(.repo == $repo and .number == $num) | .url' "$PRS_FILE")
 
 # Remove from registry
 tmp="$(mktemp)"
 jq --arg repo "$REPO" --argjson num "$NUMBER" \
-  '.prs = [.prs[] | select(.repo != $repo or .number != $num)]' \
+  '.open_prs = [.open_prs[] | select(.repo != $repo or .number != $num)]' \
   "$PRS_FILE" > "$tmp"
 mv "$tmp" "$PRS_FILE"
 echo "Removed PR #${NUMBER} ($REPO) from open-prs.json"

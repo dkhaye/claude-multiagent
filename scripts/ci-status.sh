@@ -32,7 +32,7 @@ if ! command -v jq &>/dev/null; then
   exit 1
 fi
 
-PR_COUNT=$(jq '.prs | length' "$PRS_FILE")
+PR_COUNT=$(jq '.open_prs | length' "$PRS_FILE")
 if [[ "$PR_COUNT" -eq 0 ]]; then
   echo "No open PRs tracked in $PRS_FILE"
   exit 0
@@ -42,11 +42,11 @@ echo ""
 FAILED_PRS=0
 
 for i in $(seq 0 $((PR_COUNT - 1))); do
-  NUMBER=$(jq -r ".prs[$i].number" "$PRS_FILE")
-  REPO=$(jq -r   ".prs[$i].repo"   "$PRS_FILE")
-  TITLE=$(jq -r  ".prs[$i].title"  "$PRS_FILE")
-  AUTHOR=$(jq -r ".prs[$i].author" "$PRS_FILE")
-  URL=$(jq -r    ".prs[$i].url"    "$PRS_FILE")
+  NUMBER=$(jq -r ".open_prs[$i].number" "$PRS_FILE")
+  REPO=$(jq -r   ".open_prs[$i].repo"   "$PRS_FILE")
+  TITLE=$(jq -r  ".open_prs[$i].title"  "$PRS_FILE")
+  AUTHOR=$(jq -r ".open_prs[$i].author" "$PRS_FILE")
+  URL=$(jq -r    ".open_prs[$i].url"    "$PRS_FILE")
 
   # Run gh pr checks — capture output and exit code
   CHECKS_OUT=""
@@ -79,7 +79,7 @@ for i in $(seq 0 $((PR_COUNT - 1))); do
 done
 
 if [[ "$FAILED_PRS" -gt 0 ]]; then
-  echo ">>> $FAILED_PRS PR(s) have failing checks <<<"
+  echo ">>> $FAILED_PRS open PR(s) have failing checks <<<"
   exit 1
 else
   echo "All ${PR_COUNT} open PR(s) are passing."

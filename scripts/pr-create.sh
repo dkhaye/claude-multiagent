@@ -58,7 +58,11 @@ done
 
 # Register in metadata/open-prs.json
 PRS_FILE="$WORKSPACE_ROOT/metadata/open-prs.json"
-if [[ -f "$PRS_FILE" ]] && command -v jq &>/dev/null; then
+if command -v jq &>/dev/null; then
+  # Initialize schema v2 file if missing
+  if [[ ! -f "$PRS_FILE" ]]; then
+    printf '{"schema_version":2,"open_prs":[],"merged_recently":[]}\n' > "$PRS_FILE"
+  fi
   ENTRY=$(jq -n \
     --argjson number "$PR_NUMBER" \
     --arg     repo    "$REPO"      \
@@ -68,8 +72,10 @@ if [[ -f "$PRS_FILE" ]] && command -v jq &>/dev/null; then
     --arg     feature "$CC_FEATURE" \
     --arg     opened  "$(date +%Y-%m-%d)" \
     '{number: $number, repo: $repo, url: $url, title: $title,
-      author: $author, feature: $feature, opened: $opened}')
+      author: $author, feature: $feature, opened: $opened,
+      status: "ci_unknown", human_approved: false}')
   tmp="$(mktemp)"
-  jq --argjson entry "$ENTRY" '.prs += [$entry]' "$PRS_FILE" > "$tmp"
+  jq --argjson entry "$ENTRY" '.open_prs += [$entry]' "$PRS_FILE" > "$tmp"
   mv "$tmp" "$PRS_FILE"
+  echo "Registered PR #${PR_NUMBER} in open-prs.json" >&2
 fi

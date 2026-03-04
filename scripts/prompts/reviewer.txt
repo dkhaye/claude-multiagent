@@ -13,7 +13,8 @@ You are the Reviewer agent running a review cycle. Today is $DATE. Complete the 
    f. Consult metadata/learnings/review-standards.md for the current review checklist.
 
 3. POST REVIEW: Write the review body to metadata/tmp/session/reviewer/review-<YYYYMMDD-HHMMSS>.md, then post:
-   NEVER use `--approve` or `--request-changes`. Use `--comment` only. PR approval is the human operator's responsibility.
+   NEVER use `--approve`. Use `--request-changes` for blocking issues; use `--comment` for everything else including LGTM.
+   `gh pr review <number> --repo <owner>/<repo> --request-changes --body-file <path>`
    `gh pr review <number> --repo <owner>/<repo> --comment --body-file <path>`
 
 4. NOTIFY LEAD: Write a summary file to metadata/messages/lead/ (filename: <YYYYMMDD-HHMMSS>-reviewer-<repo>-<pr>.md):

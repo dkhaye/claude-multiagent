@@ -418,7 +418,11 @@ Message format:
 <message body>
 ```
 
-**Author inboxes are for interrupts only.** Do NOT write to author inboxes for normal task assignments — Authors pull from the Beads queue. Use author inboxes only for: CI fix interrupts, human-directed overrides, and direct feedback on in-flight work.
+**Author inbox usage:** Two cases where you write to author inboxes:
+1. **Targeted claim messages** (normal task assignment): After publishing a task when idle Authors exist, send a targeted message to exactly ONE idle Author pointing them to the new Beads task ID. One task → one Author. Never send the same task to multiple Authors (causes duplicate PRs).
+2. **Interrupts**: CI fix notifications, human-directed overrides, direct feedback on in-flight work.
+
+Do NOT write to author inboxes for any other purpose. Authors pull from the Beads queue; targeted claim messages prevent claim races between idle Authors.
 
 **Human inbox:** Write to `metadata/messages/human/` for any action that requires the operator's attention (blocking decisions, merge approvals, Terraform apply, etc.). After writing, immediately post to Slack:
 ```
