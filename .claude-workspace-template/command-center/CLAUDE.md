@@ -77,25 +77,9 @@ Cross-project rules live at `~/projects/.global/knowledge/`. Read the relevant f
 
 To flag a new cross-project learning, add `[GLOBAL]` to a message in `metadata/messages/human/`.
 
-## Reading files and streams — use built-in tools, not bash
+## Bash rules
 
-**NEVER use `find`, `grep`, or `ls` in Bash.** Use the built-in **Glob**, **Grep**, and **Read** tools instead — they are auto-approved, faster, and avoid pipe/redirect/path permission issues.
-
-Claude Code permission patterns do NOT match `/` in paths, and do NOT match shell operators (`|`, `||`, `&&`, `>`, `2>&1`). **Avoid permission prompts by using built-in tools:**
-
-| Instead of bash…              | Use this tool / command |
-|-------------------------------|-------------------------|
-| `cat`, `head`, `tail`, `less` | **Read**                |
-| `find`, `ls -R`, `tree`, `ls` | **Glob**                |
-| `grep -r`, `rg`               | **Grep**                |
-| `gh api <endpoint> ...`       | `scripts/gh-api-read.sh <endpoint> [flags]` |
-
-**When you must use Bash, follow these rules:**
-- **No `gh api` directly** — use `scripts/gh-api-read.sh <endpoint> [--jq <expr>] [--decode-content]` instead. It enforces GET-only and is pre-approved. **Never append `2>/dev/null` to it** — let exit code 1 propagate so you know when a file doesn't exist or auth fails.
-- **No redirects** (`>`, `2>`, `2>&1`, `2>/dev/null`) — triggers permission prompts.
-- **No pipes or compound operators** (`|`, `||`, `&&`, `;`) — blocked by Claude Code shell awareness.
-- **No `cd`** — use flag-based alternatives (`git -C`).
-- **One simple command per Bash call.**
+**Blocked:** `find`, `ls`, `grep`/`rg`, `cat`/`head`/`tail` — use **Glob**/**Grep**/**Read** tools instead. No redirects (`>`/`2>&1`), no pipes (`|`), no compound operators (`&&`/`||`/`;`), no `cd`. One command per Bash call. No `gh api` directly — use `scripts/gh-api-read.sh`.
 
 ## Command execution — nyt-command tiers (MANDATORY)
 
@@ -103,15 +87,11 @@ Route all terminal command execution through `nyt-command` tiered agents via the
 
 | Tier | Model | Use when |
 |------|-------|----------|
-| `nyt-command:easy` | haiku | Pass/fail output: `git status/log/diff/branch`, `gh pr view/list/checks/status`, `gh run list`, `sync-pr-state.sh`, script invocations with clear output |
-| `nyt-command:medium` | sonnet | Reasoning required: `gh run view --log` CI failure analysis, multi-step sequences where output informs next step |
-| `nyt-command:hard` | opus | Ambiguous errors escalated from lower tiers — rare for this role |
+| `nyt-command:easy` | haiku | Pass/fail output: `git status/log/diff`, `gh pr view/list/checks`, `sync-pr-state.sh`, script invocations with clear output |
+| `nyt-command:medium` | sonnet | Reasoning required: CI failure log analysis, multi-step sequences where output informs next step |
+| `nyt-command:hard` | opus | Ambiguous errors escalated from lower tiers — rare |
 
-**Note:** CCs do not run builds, tests, or linters directly — those are Author tasks. Use `nyt-command` for git/gh reads, script execution, and CI inspection only.
-
-**Invocation:** Use the Agent tool with `subagent_type: nyt-command:easy` (or `medium`/`hard`), a short description, and a prompt containing the exact command and expected output format.
-
-**Escalation:** When a tier cannot resolve an issue, pass its full output, the original command, and what was attempted to the next tier up.
+**Invocation:** Use the Agent tool with `subagent_type: nyt-command:easy` (or `medium`/`hard`), a short description, and a prompt with the exact command and expected output format.
 
 ## Agent configuration rules
 

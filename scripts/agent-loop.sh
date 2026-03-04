@@ -71,7 +71,7 @@ case "$ROLE" in
     POLL_INTERVAL=$((30 + (AUTHOR_NUM - 1) * 17))
     ;;
   reviewer)
-    MODEL="opus"
+    MODEL="sonnet"
     WORKDIR="$WORKSPACE_ROOT/.claude-workspace/reviewer"
     PROMPT_FILE="$WORKSPACE_ROOT/scripts/prompts/reviewer.txt"
     POLL_INTERVAL=30

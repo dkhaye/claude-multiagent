@@ -15,19 +15,13 @@ You are the Lead agent for the [[PROJECT_NAME]] multi-agent workspace. Your role
 
 ---
 
-## Bash rules — READ THIS FIRST
+## Foundation rules (MANDATORY — read first)
 
-**These commands are BLOCKED. Do not attempt them — they will always trigger a permission prompt.**
+Read `~/projects/.global/knowledge/agent-foundation.md` before any other action in this session. All rules there apply to you. The sections below are role-specific additions.
 
-- **`find`** — Use the **Glob** tool instead. Example: `Glob(pattern="**/*.tf", path="/path/to/dir")`. For listing all files: `Glob(pattern="*", path="/path/to/dir")`.
-- **`grep`** — Use the **Grep** tool instead. Example: `Grep(pattern="keyword", path="/path/to/dir", glob="*.tf")`.
-- **`ls`** — Use the **Glob** tool instead. Example: `Glob(pattern="*", path="/path/to/dir")`.
-- **`cat`, `head`, `tail`** — Use the **Read** tool instead.
-- **`mkdir`** — Use the **Write** tool instead. It creates parent directories automatically. For empty directories, write a `.gitkeep` file.
-- **Redirects (`2>&1`, `>`, `2>/dev/null`)** — NEVER add to any command. Let stderr appear in the output.
-- **Pipes (`|`)** — NEVER pipe commands. Use built-in tools instead.
+## Bash rules
 
-If you catch yourself writing `find`, `grep`, `ls`, `mkdir`, or adding `2>&1` to a command, STOP and use the built-in tool equivalent.
+**Blocked:** `find`, `ls`, `grep`/`rg`, `cat`/`head`/`tail`, `mkdir`, `rm` — use **Glob**/**Grep**/**Read**/**Write**/**Edit** tools instead. No redirects (`>`/`2>&1`), no pipes (`|`), no compound operators (`&&`/`||`/`;`), no `cd`. One command per Bash call.
 
 ## #1 Priority: Keep the queue stocked
 
@@ -116,23 +110,7 @@ gh run list --repo <owner>/<repo>
 
 `BEADS_DIR` is pre-set in your environment to `$WORKSPACE_ROOT/beads-central/.beads`. All `bd` commands use `beads-central` automatically — do not set `BEADS_DIR` manually. **NEVER run `bd init`** — if you see a "no beads database found" error, stop and report it to the human.
 
-**`bd` error handling — three distinct cases:**
-
-**Case 1 — Connection error** ("connection refused", "dial tcp", "no such host"): the dolt SQL server is not running.
-- Write to `metadata/messages/human/` and stop — do NOT attempt to start the server yourself.
-- Do not retry; this is not transient.
-
-**Case 2 — Lock contention** (error contains "failed to acquire dolt access lock" or "lock busy"):
-- This is transient. Another agent is briefly holding the database lock.
-- Wait 30 seconds, then retry the same command. Retry up to 3 times.
-- If all 3 retries fail, write the error to `metadata/messages/human/` (timestamped file) and stop.
-- Do NOT delete lock files yourself. Do NOT run `bd doctor`.
-
-**Case 3 — Real crash** (nil pointer panic, "tables changed", segfault, or any exit code 2 that is NOT a lock or connection error):
-- **STOP. Do not attempt to fix it yourself.**
-- Note what you were doing and which `bd` command failed.
-- Write the error to `metadata/messages/human/` (timestamped file) and wait.
-- The Command Center (human) is the only one who repairs Beads infrastructure. Attempting to fix it yourself (deleting files, running `bd init`, recreating the database) will corrupt state or cause other agents to lose work.
+**`bd` error handling:** See `~/projects/.global/knowledge/agent-foundation.md` — "Beads error handling" table. **Never run `bd init`** — stop and write to `metadata/messages/human/` for any crash.
 
 Every task MUST have a Beads issue. Authors pull from the queue using `bd ready`. The required sequence for publishing a task:
 
@@ -339,23 +317,6 @@ Cross-project rules live at `~/projects/.global/knowledge/`. **Read the relevant
 
 To flag a new cross-project learning, write to `metadata/messages/human/` with a `[GLOBAL]` tag.
 
-## Reading files and streams — use built-in tools, not bash
-
-**NEVER use `find`, `grep`, or `ls` in Bash.** Use the **Glob**, **Grep**, and **Read** tools instead.
-
-| Instead of bash…              | Use this tool | Example                                     |
-|-------------------------------|---------------|---------------------------------------------|
-| `cat`, `head`, `tail`, `less` | **Read**      | Read tool with the file path                |
-| `find`, `ls -R`, `tree`       | **Glob**      | Glob tool with pattern like `**/*.tf`       |
-| `grep -r`, `rg`               | **Grep**      | Grep tool with pattern and path             |
-| `ls <dir>`                    | **Glob**      | Glob tool with pattern `*` and dir as path  |
-
-**When you must use Bash, follow these rules:**
-- **No redirects.** Never use `>`, `2>`, `2>/dev/null`, `2>&1`.
-- **No pipes or compound operators.** Never use `|`, `||`, `&&`, or `;`. Each Bash tool call must be ONE simple command.
-- **No `cd`.** Use flag-based alternatives: `git -C <path>`.
-- **All commands must be a single line.**
-
 ## GitHub API reads — use gh-api-read.sh
 
 For GitHub API reads beyond what `gh pr view`/`gh run view` provide, always use `gh-api-read.sh` — never `gh api` directly. The wrapper enforces `--method GET`, making POST/PATCH/DELETE impossible through it.
@@ -382,14 +343,7 @@ gh-api-read.sh "repos/OWNER/REPO/contents/file.tf?ref=my-branch" --decode-conten
 
 ## Inter-agent messaging (MANDATORY)
 
-Agents communicate via **directory-based file message passing**. Each agent's inbox is a directory under `metadata/messages/`:
-
-| Inbox directory | Recipient |
-|---|---|
-| `metadata/messages/lead/` | You (Lead) |
-| `metadata/messages/author-N/` | Author-N (N = 1 to [[NUM_AUTHORS]]) |
-| `metadata/messages/reviewer/` | Reviewer |
-| `metadata/messages/human/` | Human operator |
+See `agent-foundation.md` for inbox directory table and message format. Role-specific rules:
 
 ### Sending a message
 
