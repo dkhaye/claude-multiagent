@@ -24,7 +24,7 @@ REPO="${2:-}"
 
 if [[ -z "$NUMBER" || -z "$REPO" ]]; then
   echo "Usage: pr-changed-since-review.sh <pr-number> <owner/repo>" >&2
-  echo "  e.g. pr-changed-since-review.sh 50 [[ORG]]/[[REPO_NAME]]" >&2
+  echo "  e.g. pr-changed-since-review.sh 50 org/repo-name" >&2
   exit 1
 fi
 
