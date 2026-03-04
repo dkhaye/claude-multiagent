@@ -19,7 +19,9 @@
       "Bash(wget *)",
       "Bash(test *)",
       "Bash([ *)",
-      "Bash([[ *)"
+      "Bash([[ *)",
+      "Bash(*&&*)",
+      "Bash(*||*)"
     ],
     "allow": [
       "Read",

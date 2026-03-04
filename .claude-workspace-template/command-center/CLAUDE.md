@@ -93,9 +93,9 @@ Run terminal commands directly via Bash. One command per Bash call.
 
 When editing agent CLAUDE.md or settings files, keep these principles in mind:
 
-- **Permission patterns:** `*` does not match `/` in paths. `*` does not match past shell operators. Keep patterns simple — prefer built-in tools over bash for operations that involve paths.
+- **Permission patterns:** `*` does not match `/` in paths, but DOES match shell operators — `"Bash(git *)"` will match `git foo && git bar`. Keep patterns simple; prefer built-in tools over Bash for path operations.
 - **`rm -rf` is safety-blocked** by Claude Code regardless of allow patterns. Use `scripts/cleanup-worktrees.sh` for worktree cleanup. Agents do NOT have `Bash(bash *)`.
-- **Compound commands are blocked** — Claude Code parses shell operators and rejects commands with `||`, `&&`, `|`, `;` even if each sub-command is individually allowed.
+- **`&&` and `||` are explicitly denied in settings** — these are in the deny list for all roles and will be auto-rejected even if an allow pattern matches the command. For `|` and `;`, only CLAUDE.md policy applies (not settings-enforced). One command per Bash call regardless.
 - **Test patterns mentally** before adding them: will the `*` need to match a `/`? Is there a redirect? Is there a pipe?
 
 ## Messaging the lead

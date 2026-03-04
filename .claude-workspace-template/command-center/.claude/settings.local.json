@@ -16,7 +16,9 @@
       "Bash(xargs *)",
       "Bash(sleep *)",
       "Bash(curl *)",
-      "Bash(wget *)"
+      "Bash(wget *)",
+      "Bash(*&&*)",
+      "Bash(*||*)"
     ],
     "allow": [
       "Read",
