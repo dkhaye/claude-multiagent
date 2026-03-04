@@ -61,7 +61,6 @@ case "$ROLE" in
     WORKDIR="$WORKSPACE_ROOT/.claude-workspace/lead-agent"
     PROMPT_FILE="$WORKSPACE_ROOT/scripts/prompts/lead.txt"
     POLL_INTERVAL=60
-    MAX_IDLE_POLLS=3
     ;;
   author)
     MODEL="sonnet"
@@ -70,14 +69,12 @@ case "$ROLE" in
     # Stagger poll intervals to avoid thundering herd on the Beads database.
     # Author 1: 30s, Author 2: 47s, Author 3: 64s — they never poll at the same time.
     POLL_INTERVAL=$((30 + (AUTHOR_NUM - 1) * 17))
-    MAX_IDLE_POLLS=0
     ;;
   reviewer)
     MODEL="opus"
     WORKDIR="$WORKSPACE_ROOT/.claude-workspace/reviewer"
     PROMPT_FILE="$WORKSPACE_ROOT/scripts/prompts/reviewer.txt"
     POLL_INTERVAL=30
-    MAX_IDLE_POLLS=0
     ;;
   *)
     echo "Error: unknown role '$ROLE'. Must be lead, author, or reviewer." >&2
@@ -129,8 +126,11 @@ log() {
 CONSECUTIVE_FAILURES=0
 MAX_FAILURES=5
 RESTART_DELAY=5
-IDLE_POLLS=0
 CYCLE=0
+# Adaptive idle backoff — starts at POLL_INTERVAL, doubles up to MAX_POLL_DELAY.
+# Zero LLM sessions launched for idle polling; Claude only wakes when there is work.
+IDLE_POLL_DELAY=$POLL_INTERVAL
+MAX_POLL_DELAY=300
 
 FIRST_RUN=false
 if [[ "$ROLE" == "lead" ]]; then
@@ -143,7 +143,7 @@ log "=== Inbox: $INBOX_DIR/ ==="
 log "=== Log file: $LOG_FILE ==="
 log "=== Pause file: $PAUSE_FILE ==="
 log "=== Trigger file: $TRIGGER_FILE ==="
-log "=== Poll interval: ${POLL_INTERVAL}s (idle) ==="
+log "=== Poll interval: ${POLL_INTERVAL}s initial (adaptive backoff up to 300s) ==="
 log ""
 
 cd "$WORKDIR"
@@ -192,23 +192,21 @@ while true; do
     LAUNCH_REASON="inbox"
   elif [[ "$ROLE" == "author" ]] && queue_has_work; then
     LAUNCH_REASON="queue"
-  elif [[ $MAX_IDLE_POLLS -gt 0 ]]; then
-    IDLE_POLLS=$((IDLE_POLLS + 1))
-    if [[ $IDLE_POLLS -ge $MAX_IDLE_POLLS ]]; then
-      LAUNCH_REASON="periodic"
-      IDLE_POLLS=0
-    fi
   fi
 
   if [[ -z "$LAUNCH_REASON" ]]; then
-    echo "[$(date '+%H:%M:%S')] No work (inbox empty, queue empty). Polling in ${POLL_INTERVAL}s..."
-    sleep "$POLL_INTERVAL"
+    echo "[$(date '+%H:%M:%S')] No work (inbox empty, queue empty). Polling in ${IDLE_POLL_DELAY}s..."
+    sleep "$IDLE_POLL_DELAY"
+    # Adaptive backoff: double the interval up to MAX_POLL_DELAY (zero LLM cost)
+    IDLE_POLL_DELAY=$(( IDLE_POLL_DELAY * 2 > MAX_POLL_DELAY ? MAX_POLL_DELAY : IDLE_POLL_DELAY * 2 ))
     continue
   fi
 
+  # Reset idle backoff when work is found
+  IDLE_POLL_DELAY=$POLL_INTERVAL
+
   # --- Launch claude ---
   CYCLE=$((CYCLE + 1))
-  IDLE_POLLS=0
   log "--- Cycle $CYCLE starting at $(date '+%Y-%m-%d %H:%M:%S') (trigger: $LAUNCH_REASON) ---"
 
   PROMPT=$(build_prompt)
