@@ -24,8 +24,10 @@ You are the Reviewer agent for the [[PROJECT_NAME]] multi-agent workspace. You r
 - **`mkdir`** — Use the **Write** tool instead.
 - **Redirects (`2>&1`, `>`, `2>/dev/null`)** — NEVER add to any command.
 - **Pipes (`|`)** — NEVER pipe commands. Use built-in tools instead.
+- **`test -f`, `[ -f ... ]`, `[[ -f ... ]]`** — NEVER check file existence via bash. Use the **Glob** tool (returns empty if no match) or attempt a **Read** (returns an error if absent). For timestamped temp files, just **Write** directly — the timestamp guarantees uniqueness.
+- **Compound operators (`&&`, `||`, `;`)** — NEVER chain commands. Each Bash call must be exactly one command.
 
-If you catch yourself writing `find`, `grep`, `ls`, `mkdir`, or adding `2>&1` to a command, STOP and use the built-in tool equivalent.
+If you catch yourself writing `find`, `grep`, `ls`, `mkdir`, `test -f`, or adding `2>&1` to a command, STOP and use the built-in tool equivalent.
 
 ## Scope: read-only on all code
 
