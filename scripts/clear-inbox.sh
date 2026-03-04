@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# clear-inbox.sh — Archive specific processed inbox message files.
+# clear-inbox.sh — Process specific files: delete temp files, archive inbox messages.
 # Pass the exact file paths you have already read and processed.
 #
-# This is TOCTOU-safe: only archives files you explicitly name.
+# This is TOCTOU-safe: only processes files you explicitly name.
 # New messages that arrive after you started reading are untouched.
 #
-# Messages are moved (not deleted) to metadata/archive/messages/<agent>/
-# so they can be audited. Deletion happens later via prune-message-archive.sh.
+# Behavior depends on the file's location:
+#   .global/tmp/*.md          -> deleted immediately (throwaway commit messages / PR bodies)
+#   metadata/messages/*/*.md  -> moved to metadata/archive/messages/<agent>/ for audit trail
+#                               Deletion of archived files happens later via prune-message-archive.sh
 #
 # Usage: clear-inbox.sh <file1.md> [file2.md] ...
 # Example:
@@ -30,8 +32,16 @@ for f in "$@"; do
     echo "Skipping (not .md): $f"
     continue
   fi
-  # Derive archive dir: same structure under metadata/archive/messages/<agent>/
   INBOX_DIR="$(dirname "$f")"
+
+  # Global CC temp files (.global/tmp) are deleted, not archived
+  if [[ "$INBOX_DIR" == *"/.global/tmp" ]]; then
+    rm "$f"
+    count=$((count + 1))
+    continue
+  fi
+
+  # Project inbox messages are archived for audit trail
   AGENT_NAME="$(basename "$INBOX_DIR")"
   METADATA_DIR="$(dirname "$(dirname "$INBOX_DIR")")"
   ARCHIVE_DIR="$METADATA_DIR/archive/messages/$AGENT_NAME"
@@ -40,4 +50,4 @@ for f in "$@"; do
   count=$((count + 1))
 done
 
-echo "Archived $count message(s)."
+echo "Processed $count file(s)."
