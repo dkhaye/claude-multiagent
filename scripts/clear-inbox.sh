@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# clear-inbox.sh — Delete specific processed inbox message files.
+# clear-inbox.sh — Archive specific processed inbox message files.
 # Pass the exact file paths you have already read and processed.
 #
-# This is TOCTOU-safe: only deletes files you explicitly name.
+# This is TOCTOU-safe: only archives files you explicitly name.
 # New messages that arrive after you started reading are untouched.
+#
+# Messages are moved (not deleted) to metadata/archive/messages/<agent>/
+# so they can be audited. Deletion happens later via prune-message-archive.sh.
 #
 # Usage: clear-inbox.sh <file1.md> [file2.md] ...
 # Example:
@@ -27,8 +30,14 @@ for f in "$@"; do
     echo "Skipping (not .md): $f"
     continue
   fi
-  rm "$f"
+  # Derive archive dir: same structure under metadata/archive/messages/<agent>/
+  INBOX_DIR="$(dirname "$f")"
+  AGENT_NAME="$(basename "$INBOX_DIR")"
+  METADATA_DIR="$(dirname "$(dirname "$INBOX_DIR")")"
+  ARCHIVE_DIR="$METADATA_DIR/archive/messages/$AGENT_NAME"
+  mkdir -p "$ARCHIVE_DIR"
+  mv "$f" "$ARCHIVE_DIR/"
   count=$((count + 1))
 done
 
-echo "Deleted $count message(s)."
+echo "Archived $count message(s)."

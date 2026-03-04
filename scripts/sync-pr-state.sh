@@ -179,7 +179,7 @@ jq \
   ))                                                 as $newly_merged |
 
   .open_prs      = $still_open |
-  .merged_recently = ($newly_merged + (.merged_recently // []))
+  .merged_recently = (($newly_merged + (.merged_recently // [])) | .[-50:])
 
 ' "$PR_FILE" > "${PR_FILE}.new"
 

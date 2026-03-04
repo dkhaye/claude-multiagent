@@ -117,8 +117,20 @@ queue_has_work() {
   bd ready 2>/dev/null | grep -q 'beads-central-'
 }
 
+# --- Log rotation ---
+MAX_LOG_SIZE=512000
+rotate_log_if_needed() {
+  local size=0
+  size=$(stat -f%z "$LOG_FILE" 2>/dev/null || stat -c%s "$LOG_FILE" 2>/dev/null || echo 0)
+  if [[ -f "$LOG_FILE" && "$size" -gt $MAX_LOG_SIZE ]]; then
+    mv "$LOG_FILE" "${LOG_FILE}.prev"
+    echo "Log rotated at $(date '+%Y-%m-%d %H:%M:%S')" > "$LOG_FILE"
+  fi
+}
+
 # --- Log helper ---
 log() {
+  rotate_log_if_needed
   echo "$@" | tee -a "$LOG_FILE"
 }
 
@@ -131,6 +143,11 @@ CYCLE=0
 # Zero LLM sessions launched for idle polling; Claude only wakes when there is work.
 IDLE_POLL_DELAY=$POLL_INTERVAL
 MAX_POLL_DELAY=300
+# Housekeeping cadence (Lead only): sweep worktrees + prune archive every 30 minutes.
+# Initialize to current time so housekeeping first fires 30 min after startup,
+# not immediately (launch-agents.sh already handles startup cleanup).
+LAST_HOUSEKEEPING_EPOCH=$(date +%s)
+HOUSEKEEPING_INTERVAL=1800
 
 FIRST_RUN=false
 if [[ "$ROLE" == "lead" ]]; then
@@ -177,6 +194,21 @@ while true; do
     fi
     sleep "$RESTART_DELAY"
     continue
+  fi
+
+  # --- Periodic housekeeping (Lead only, zero LLM cost) ---
+  if [[ "$ROLE" == "lead" ]]; then
+    NOW_EPOCH=$(date +%s)
+    if (( NOW_EPOCH - LAST_HOUSEKEEPING_EPOCH >= HOUSEKEEPING_INTERVAL )); then
+      LAST_HOUSEKEEPING_EPOCH=$NOW_EPOCH
+      log "--- Housekeeping at $(date '+%Y-%m-%d %H:%M:%S') ---"
+      if [[ -f "$WORKSPACE_ROOT/scripts/sweep-stale-worktrees.sh" ]]; then
+        "$WORKSPACE_ROOT/scripts/sweep-stale-worktrees.sh" --quiet 2>&1 | tee -a "$LOG_FILE" || true
+      fi
+      if [[ -f "$WORKSPACE_ROOT/scripts/prune-message-archive.sh" ]]; then
+        "$WORKSPACE_ROOT/scripts/prune-message-archive.sh" --agent-days 7 --human-days 14 --quiet 2>&1 | tee -a "$LOG_FILE" || true
+      fi
+    fi
   fi
 
   # --- Determine if there's work to do ---

@@ -54,7 +54,17 @@ fi
 
 # Clean up stale temp files from previous sessions
 if [[ -f "$WORKSPACE_ROOT/scripts/tmp-clean.sh" ]]; then
-  "$WORKSPACE_ROOT/scripts/tmp-clean.sh" --beads --older-than 1 --quiet || true
+  "$WORKSPACE_ROOT/scripts/tmp-clean.sh" --all --older-than 1 --quiet || true
+fi
+
+# Sweep stale worktrees for completed features
+if [[ -f "$WORKSPACE_ROOT/scripts/sweep-stale-worktrees.sh" ]]; then
+  "$WORKSPACE_ROOT/scripts/sweep-stale-worktrees.sh" --quiet || true
+fi
+
+# Prune old archived inbox messages
+if [[ -f "$WORKSPACE_ROOT/scripts/prune-message-archive.sh" ]]; then
+  "$WORKSPACE_ROOT/scripts/prune-message-archive.sh" --agent-days 7 --human-days 14 --quiet || true
 fi
 
 # Clear nested-session guard so Claude Code can launch inside tmux panes
