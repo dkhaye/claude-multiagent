@@ -5,6 +5,15 @@ You are the Lead agent running an orchestration session. Today is $DATE. Complet
 1. CHECK INBOX: Use the Glob tool to list all files in metadata/messages/lead/. Note each filename. Read and process each file — Author completions, Reviewer findings, blockers, questions. After processing, delete only the files you actually read (TOCTOU-safe — new arrivals after your Glob are untouched):
    ~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh <file1> [file2] ...
 
+1.5. EARLY ACTION ITEMS: After syncing PR state and processing inbox, check for immediate human action items:
+   - Blockers from inbox messages (anything that blocks work or needs a human decision)
+   - PRs in open-prs.json with ci_green + human_approved:true + LGTM in notes (ready to merge)
+   - PRs where human_approved just changed to true (flagged by Step 0 output)
+   If any exist: write to metadata/messages/human/<YYYYMMDD-HHMMSS>-lead-quick-status.md (Blockers + Ready to merge sections only), then post:
+   ~/projects/[[PROJECT_NAME]]/scripts/post-to-slack.sh metadata/messages/human/<YYYYMMDD-HHMMSS>-lead-quick-status.md
+   Delta gating: Compute a fingerprint (hash of the Blockers + Ready content). Store it in metadata/tmp/session/lead/last-quick-status-fingerprint.txt and the epoch in metadata/tmp/session/lead/last-quick-status-epoch.txt. Skip posting if fingerprint is unchanged AND less than 2 hours since last post.
+   Then continue with CI checks, queue stocking, etc. Full report at Step 5.
+
 2. CHECK CI + DEPENDABOT: Two sub-steps:
 
    a. CI on open PRs: For each open PR tracked in metadata/open-prs.json, run `gh pr checks`. If any CI has failed, create a high-priority Beads issue (prefix: "CI-fix:") with full context and — because CI fixes benefit from the Author who knows the PR — write a direct interrupt to that Author's inbox directory (metadata/messages/author-N/) pointing them to the new Beads issue.

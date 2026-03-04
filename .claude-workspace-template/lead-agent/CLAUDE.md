@@ -453,9 +453,10 @@ Task: <brief description>
 Look for: <specific concerns>
 ```
 
-When you receive Reviewer findings:
-- **request-changes**: create a fix task and assign it to an available Author.
-- **comment/lgtm**: Record the Reviewer verdict in `open-prs.json` notes. Then check `human_approved` for that PR:
+When you receive Reviewer findings (check the `Verdict:` field in their message):
+- **blocking-request-changes**: Create a fix task. Assign to the Author who opened the PR if idle — they have context. Only route to a different Author if the original is busy with higher-priority work.
+- **nits-only-comment**: Do NOT create a fix task. Record `"reviewer_verdict": "lgtm"` in `open-prs.json` notes. Nits are optional — proceed with merge flow.
+- **lgtm-comment**: Record verdict in `open-prs.json` notes. Then check `human_approved` for that PR:
   - `true` → write to human inbox: PR has Reviewer LGTM and human GitHub approval, ready to merge.
   - `false` → **do NOT write to human inbox yet.** The human cannot merge without a GitHub approval from another human. Wait — `sync-pr-state.sh --approvals` will detect the approval at the next session and trigger the inbox notification then.
 
@@ -474,6 +475,9 @@ Each session, execute these steps in order, then remain available for follow-up 
 
 0. **Sync PR state** *(always first)*: Run `~/projects/[[PROJECT_NAME]]/scripts/sync-pr-state.sh --approvals` and read its output. This moves merged/closed PRs out of `open_prs`, updates CI status, and refreshes human GitHub approval state. Note any newly-merged PRs and PRs that became `human_approved: true` — those trigger the "ready to merge" notification in Step 1. To also refresh CI status in one pass, use `--ci --approvals` (costs one `gh pr checks` call per PR — use when many PRs show `ci_unknown` or `ci_pending`).
 1. **Check inbox**: Use the **Glob** tool to list all files in `metadata/messages/lead/`. Note each filename. Read and process each file — Author completions, Reviewer findings, blockers. After processing, delete only the files you read (TOCTOU-safe): `~/projects/[[PROJECT_NAME]]/scripts/clear-inbox.sh <file1> [file2] ...` Do NOT use `rm` directly.
+
+1.5. **Early action items** — after Step 0 and Step 1, scan for immediate human action items (see "Early action-item delivery" section below). Post quick-status to Slack before continuing.
+
 2. **Check CI and approvals**: For each open PR in `metadata/open-prs.json` with status `ci_failing` or `ci_unknown`, run `gh pr checks <number> --repo <owner>/<repo>`. For failures, create a `CI-fix:` Beads issue and send an inbox interrupt to the Author who opened the PR. Skip PRs already marked `ci_green` unless Step 0 flagged a change. Also check the 24-hour escalation rule (see Reviewer integration) for any PR with Reviewer LGTM but `human_approved: false`.
 3. **Stock the queue**: Review `metadata/task-board.md`. For each task that is ready (dependencies met), create a worktree if needed, publish via `~/projects/[[PROJECT_NAME]]/scripts/beads-publish.sh`, and update `metadata/agent-assignments.md`. Publish all ready tasks in one pass.
 4. **Send review requests**: For completed PRs without a review, write to `metadata/messages/reviewer/`.
@@ -499,6 +503,37 @@ Each session, execute these steps in order, then remain available for follow-up 
    Then wait for further instructions from the human.
 
 Sessions are fully interactive — do NOT exit after completing the initial checklist. The human may ask follow-up questions, override decisions, or direct additional work within the same session.
+
+### Early action-item delivery (MANDATORY)
+
+After Step 0 and Step 1, before continuing to CI checks and queue stocking, scan for immediate human action items:
+
+1. Blockers from inbox messages (anything requiring a human decision before work can continue)
+2. PRs where `ci_green + human_approved: true` + LGTM in notes (ready to merge)
+3. PRs where `human_approved` just changed to `true` (flagged in Step 0 sync output)
+
+If ANY exist, write a quick-status file to `metadata/messages/human/<YYYYMMDD-HHMMSS>-lead-quick-status.md` (Blockers + Ready to merge sections only — no full report yet) and immediately post to Slack:
+```
+~/projects/[[PROJECT_NAME]]/scripts/post-to-slack.sh metadata/messages/human/<YYYYMMDD-HHMMSS>-lead-quick-status.md
+```
+
+**Delta gating (MANDATORY):** Do NOT post unchanged content every cycle.
+- Compute a fingerprint (e.g. `echo "<blockers+ready content>" | shasum`) of the Blockers + Ready lines.
+- Store in `metadata/tmp/session/lead/last-quick-status-fingerprint.txt` and the post epoch in `metadata/tmp/session/lead/last-quick-status-epoch.txt`.
+- Skip posting if fingerprint is unchanged AND less than 2 hours since last post.
+- Always post if fingerprint changes (new blocker or new ready-to-merge PR).
+
+Human gets actionable items within the first 2 minutes of the cycle. Full 5-bucket report still happens at Step 5.
+
+## Task size guardrails
+
+One Beads task → one PR. Keep tasks focused and reviewable:
+
+- **Soft limits:** ≤300 changed lines, ≤12 files, single subsystem or concern.
+- **If a task will exceed the soft limits:** Split it into multiple smaller Beads tasks before publishing. Note dependencies in the task descriptions.
+- **Author override request:** If an Author messages you requesting to exceed these limits, you may grant explicit override — reply to their inbox with confirmation. Include the reason in the Beads task description so the Reviewer knows it was pre-approved.
+
+These limits exist to reduce Reviewer miss rates and LLM hallucination risk in large diffs. Smaller, focused PRs merge faster.
 
 ## Beads failures — escalate, do not fix
 

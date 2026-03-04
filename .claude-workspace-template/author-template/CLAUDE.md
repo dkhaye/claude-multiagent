@@ -231,6 +231,29 @@ When your Beads task is a dependabot fix (`CI-fix: dependabot ...`), the workflo
 5. Create PRs via `gh pr create` — follow the PR rules below. Do not merge without human approval.
 6. **Stay busy**: After completing a task, immediately run `bd ready` again. Keep pulling and working until the queue is empty.
 
+## Pre-PR self-check (MANDATORY)
+
+Before opening a PR, run this checklist. Catching issues here avoids a Reviewer request-changes cycle (which costs tokens and delays merge).
+
+1. **Read `metadata/learnings/review-standards.md`** — check your work against every applicable checklist item.
+2. **Run all linters/formatters** listed in your Project Configuration block:
+   - Terraform: `terraform fmt -check`, `terraform validate`, `tflint`, `checkov`
+   - TypeScript: `yarn test` (if a test suite exists), `yarn lint` (if configured)
+3. **Verify PR template compliance**: Use **Glob** to find `.github/**/PULL_REQUEST_TEMPLATE*` in your worktree and **Read** it. Fill every section — do not leave placeholder text or unchecked boxes for work you did.
+4. **Verify branch and base**: Confirm they match the Beads task description exactly.
+5. **Check for secrets**: Search changed files for hardcoded tokens, API keys, or URLs that should be environment variables.
+
+If the self-check reveals issues, fix them before creating the PR. Do not open a PR you know will get `--request-changes`.
+
+## Task size guardrails
+
+Keep PRs focused and reviewable:
+
+- **Soft limits:** ≤300 changed lines, ≤12 files, single subsystem or concern.
+- **If your work will exceed these limits:** Message Lead before opening the PR and request explicit override. Include the reason in your completion message. Do not open an oversized PR without Lead's explicit approval.
+
+These limits reduce Reviewer miss rates. Smaller, focused PRs merge faster.
+
 ## PR rules (MANDATORY)
 
 Before creating a PR, use the **Glob** tool to find the repo's PR template (pattern: `.github/**/PULL_REQUEST_TEMPLATE*` or `.github/**/pull_request_template*` in your worktree), then use the **Read** tool to read it. Fill out every section — do not leave placeholder comments or unchecked boxes for work you actually did.
@@ -273,19 +296,25 @@ Use the **Glob** tool to list all files in your inbox directory (`metadata/messa
 
 When a task is complete, do the following — then immediately look for more work:
 
-1. **Close the Beads issue**:
+1. **Write a delivery evidence file** to `metadata/tmp/session/author-<N>/evidence-<YYYYMMDD-HHMMSS>.md`:
    ```
-   bd close <id>
+   Branch: <feature-branch>
+   Base: <base-branch>
+   Git status: <clean|dirty + summary>
+   Commands executed:
+   - <cmd1>
+   - <cmd2>
+   Test result: <pass/fail/na>
+   Lint result: <pass/fail/na>
+   CI status: <link + state, or pending>
    ```
-   **CRITICAL: Always provide the explicit `<id>`. NEVER run `bd close` without an ID** — without an ID it closes the "last touched" issue, which may be someone else's task.
+   Mark any unknown field as `UNKNOWN` explicitly — never fabricate.
 
-2. **Send a completion message to the Lead**. Write a file to `metadata/messages/lead/<YYYYMMDD-HHMMSS>-author-<N>-complete.md`:
+2. **Run complete-task.sh** to close the Beads issue and send the completion message in one step:
    ```
-   ## From Author-<N> — Task complete
-   Task: <task summary>
-   PR: <url or 'no PR'>
-   Beads: <issue ID>
+   ~/projects/[[PROJECT_NAME]]/scripts/complete-task.sh <beads-id> <pr-url-or-none> <N> "<brief summary>" --evidence-file <evidence-file-path>
    ```
+   **CRITICAL:** Always provide the explicit `<beads-id>`. This closes the issue and writes the handoff to Lead's inbox atomically.
 
 3. **Pull more work**: Run `bd ready` immediately. If tasks are available, claim and start the next one. Stay busy until the queue is empty.
 

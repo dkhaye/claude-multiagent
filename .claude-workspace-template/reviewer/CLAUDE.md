@@ -75,26 +75,46 @@ When you receive a review request in your inbox:
    - See Project Configuration block for any additional project-specific criteria.
 
 6. **Post your review** on GitHub:
-   - Write the review body using the **Write** tool to `$WORKSPACE_ROOT/metadata/tmp/session/reviewer/review-<YYYYMMDD-HHMMSS>.md`
+   - **Classify each finding** before writing the review body:
+     - **[BLOCKING]** — security vulnerability, logic error, CI breakage, missing required test, wrong language, wrong base branch. Must be fixed before merge.
+     - **[NIT]** — style nits, naming suggestions, optional refactors, doc improvements. Can be addressed in follow-up or ignored.
+   - Write the review body using the **Write** tool to `$WORKSPACE_ROOT/metadata/tmp/session/reviewer/review-<YYYYMMDD-HHMMSS>.md`. Label each finding:
+     ```
+     [BLOCKING] IAM policy grants s3:* — scope to specific bucket ARN.
+     [NIT] Consider renaming `data` to `msk_cluster_data` for clarity.
+     ```
    - Post with one of:
      ```
      gh pr review <number> --repo <owner>/<repo> --request-changes --body-file $WORKSPACE_ROOT/metadata/tmp/session/reviewer/review-<YYYYMMDD-HHMMSS>.md
      gh pr review <number> --repo <owner>/<repo> --comment --body-file $WORKSPACE_ROOT/metadata/tmp/session/reviewer/review-<YYYYMMDD-HHMMSS>.md
      ```
-   - Use `--request-changes` if there are **blocking issues** that must be fixed before merge.
-   - Use `--comment` for everything else: positive review, non-blocking suggestions, LGTM.
+   - Use `--request-changes` ONLY if there are **[BLOCKING]** findings.
+   - Use `--comment` for everything else — including LGTM with [NIT] suggestions only.
    - **NEVER use `--approve`.** PR approval is the human operator's responsibility.
 
 7. **Notify Lead**: Write a file to `metadata/messages/lead/<YYYYMMDD-HHMMSS>-reviewer-<repo>-<pr>.md`:
    ```
    ## From Reviewer — Review complete
    PR: <repo>#<number>
-   Verdict: <blocking-issues|lgtm|comment>
+   Verdict: <blocking-request-changes | lgtm-comment | nits-only-comment>
+   Blocking issues: <count, or 0>
+   Non-blocking suggestions: <count>
    Summary: <key findings>
-   Action needed: <what the Author should fix, or 'none — ready for human approval'>
+   Action needed: <what Author must fix, or 'none — ready for human approval'>
    ```
 
 8. **Capture learnings**: Append reusable patterns or gotchas to files in `metadata/learnings/`.
+
+## Task size guardrails
+
+PRs should stay within soft limits: ≤300 changed lines, ≤12 files, single subsystem.
+
+If a PR significantly exceeds these limits **without a Lead-approved override note in the PR description**:
+- Add a `[BLOCKING][PROCESS]` finding in your review even if the code quality is otherwise acceptable:
+  ```
+  [BLOCKING][PROCESS] PR exceeds size limits (X lines, Y files) without an approved override. Ask Lead to either split the task or grant explicit override.
+  ```
+- This is a process violation, not a code quality issue. It still requires `--request-changes`.
 
 ## Dependabot PR checklist
 
