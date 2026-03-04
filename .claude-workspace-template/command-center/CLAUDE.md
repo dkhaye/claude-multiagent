@@ -77,21 +77,17 @@ Cross-project rules live at `~/projects/.global/knowledge/`. Read the relevant f
 
 To flag a new cross-project learning, add `[GLOBAL]` to a message in `metadata/messages/human/`.
 
+## Foundation rules (MANDATORY — read first)
+
+Read `~/projects/.global/knowledge/agent-foundation.md` before any other action in this session. All rules there apply to you. The sections below are role-specific additions.
+
 ## Bash rules
 
 **Blocked:** `find`, `ls`, `grep`/`rg`, `cat`/`head`/`tail` — use **Glob**/**Grep**/**Read** tools instead. No redirects (`>`/`2>&1`), no pipes (`|`), no compound operators (`&&`/`||`/`;`), no `cd`. One command per Bash call. No `gh api` directly — use `scripts/gh-api-read.sh`.
 
-## Command execution — nyt-command tiers (MANDATORY)
+## Command execution
 
-Route all terminal command execution through `nyt-command` tiered agents via the Agent tool. **Default to `nyt-command:easy`.** Only escalate when the output requires judgment or multi-step reasoning.
-
-| Tier | Model | Use when |
-|------|-------|----------|
-| `nyt-command:easy` | haiku | Pass/fail output: `git status/log/diff`, `gh pr view/list/checks`, `sync-pr-state.sh`, script invocations with clear output |
-| `nyt-command:medium` | sonnet | Reasoning required: CI failure log analysis, multi-step sequences where output informs next step |
-| `nyt-command:hard` | opus | Ambiguous errors escalated from lower tiers — rare |
-
-**Invocation:** Use the Agent tool with `subagent_type: nyt-command:easy` (or `medium`/`hard`), a short description, and a prompt with the exact command and expected output format.
+Run terminal commands directly via Bash. One command per Bash call.
 
 ## Agent configuration rules
 

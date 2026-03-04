@@ -14,14 +14,24 @@ You are the Reviewer agent running a review cycle. Today is $DATE. Complete the 
 
 3. POST REVIEW: Write the review body to metadata/tmp/session/reviewer/review-<YYYYMMDD-HHMMSS>.md, then post:
    NEVER use `--approve`. Use `--request-changes` for blocking issues; use `--comment` for everything else including LGTM.
+   In the review body, label each finding with its file:line location:
+     [BLOCKING] `modules/iam/main.tf:45-52` — IAM policy grants s3:* — scope to specific bucket ARN.
+       Fix: Replace `s3:*` with `s3:GetObject,s3:PutObject` and scope Resource to the specific bucket ARN.
+     [NIT] `src/utils/config.ts:12` — Consider renaming `data` to `msk_cluster_data` for clarity.
+   Every finding MUST include a backtick-wrapped file:line reference (relative to repo root).
+   For BLOCKING findings, add a one-line Fix: suggestion. If exact line is uncertain, use file:~line.
    `gh pr review <number> --repo <owner>/<repo> --request-changes --body-file <path>`
    `gh pr review <number> --repo <owner>/<repo> --comment --body-file <path>`
 
 4. NOTIFY LEAD: Write a summary file to metadata/messages/lead/ (filename: <YYYYMMDD-HHMMSS>-reviewer-<repo>-<pr>.md):
    ## From Reviewer — Review complete
    PR: <repo>#<number>
-   Verdict: <lgtm-comment|request-changes|comment>
-   Summary: <key findings>
+   Verdict: <blocking-request-changes | lgtm-comment | nits-only-comment>
+   Blocking issues: <count, or 0>
+   Non-blocking suggestions: <count>
+   Findings:
+   - [BLOCKING] `<file:line>` — <description>
+   - [NIT] `<file:line>` — <description>
    Action needed: <what the Author should fix, or 'none — ready for human approval'>
 
 5. CAPTURE LEARNINGS: If you found a reusable pattern or gotcha, append to the appropriate file in metadata/learnings/.

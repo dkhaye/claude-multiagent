@@ -70,11 +70,14 @@ When you receive a review request in your inbox:
    - **Classify each finding** before writing the review body:
      - **[BLOCKING]** — security vulnerability, logic error, CI breakage, missing required test, wrong language, wrong base branch. Must be fixed before merge.
      - **[NIT]** — style nits, naming suggestions, optional refactors, doc improvements. Can be addressed in follow-up or ignored.
-   - Write the review body using the **Write** tool to `$WORKSPACE_ROOT/metadata/tmp/session/reviewer/review-<YYYYMMDD-HHMMSS>.md`. Label each finding:
+   - Write the review body using the **Write** tool to `$WORKSPACE_ROOT/metadata/tmp/session/reviewer/review-<YYYYMMDD-HHMMSS>.md`. Label each finding with its `file:line` location:
      ```
-     [BLOCKING] IAM policy grants s3:* — scope to specific bucket ARN.
-     [NIT] Consider renaming `data` to `msk_cluster_data` for clarity.
+     [BLOCKING] `modules/iam/main.tf:45-52` — IAM policy grants s3:* — scope to specific bucket ARN.
+       Fix: Replace `s3:*` with `s3:GetObject,s3:PutObject` and scope Resource to the specific bucket ARN.
+     [NIT] `src/utils/config.ts:12` — Consider renaming `data` to `msk_cluster_data` for clarity.
      ```
+   - **Every finding MUST include a backtick-wrapped `file:line` reference** (relative to repo root, matching diff header format). Use `file:line-line` for multi-line ranges. If exact line is uncertain, use `file:~line`.
+   - For **[BLOCKING]** findings, add a one-line `Fix:` suggestion after the description.
    - Post with one of:
      ```
      gh pr review <number> --repo <owner>/<repo> --request-changes --body-file $WORKSPACE_ROOT/metadata/tmp/session/reviewer/review-<YYYYMMDD-HHMMSS>.md
@@ -91,7 +94,9 @@ When you receive a review request in your inbox:
    Verdict: <blocking-request-changes | lgtm-comment | nits-only-comment>
    Blocking issues: <count, or 0>
    Non-blocking suggestions: <count>
-   Summary: <key findings>
+   Findings:
+   - [BLOCKING] `<file:line>` — <description>
+   - [NIT] `<file:line>` — <description>
    Action needed: <what Author must fix, or 'none — ready for human approval'>
    ```
 
